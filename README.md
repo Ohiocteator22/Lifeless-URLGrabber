@@ -20,27 +20,6 @@ A sleek, modern desktop video downloader built with Python.
 URLGrab is a lightweight desktop app that downloads videos from **1800+ websites** in any resolution they offer — from 4K down to SD. Paste a link, pick your quality, hit download. No ads, no bloat, no browser extension.
 
 <div align="center">
-┌──────────────────────────────────────────┐
-│ URLGrab │
-│ Paste a link. Pick a quality. Done. │
-│ │
-│ VIDEO URL │
-│ ┌──────────────────────────┐ ┌──────┐ │
-│ │ youtube.com/watch?v=... │ │Fetch │ │
-│ └──────────────────────────┘ └──────┘ │
-│ │
-│ AVAILABLE FORMATS │
-│ ┌────────────────────────────────────┐ │
-│ │ 4K 2160p .mp4 1.2 GB │ │
-│ │ 2K 1440p .mp4 640 MB │ │
-│ │ FHD 1080p .mp4 220 MB │ │
-│ │ HD 720p .mp4 110 MB │ │
-│ └────────────────────────────────────┘ │
-│ │
-│ 📁 Choose Folder ⬇ Download │
-└──────────────────────────────────────────┘
-
-text
 
 </div>
 
