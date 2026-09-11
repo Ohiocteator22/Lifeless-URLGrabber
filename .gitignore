@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+history.json
+config.json
+cookies.txt
+*.exe
+.vscode/
