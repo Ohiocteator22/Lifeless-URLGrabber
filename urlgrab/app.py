@@ -9,7 +9,9 @@ from .config import (
     COOKIES_FILE,
     COLORS,
     DEFAULT_GEOMETRY,
+    DEFAULT_SETTINGS,
     MIN_SIZE,
+    parse_speed_limit,
     resolution_label,
 )
 from . import storage
@@ -20,6 +22,7 @@ from .ui.formats_tab import FormatsTabMixin
 from .ui.history_tab import HistoryTabMixin
 from .ui.batch_tab import BatchTabMixin
 from .ui.audio_tab import AudioTabMixin
+from .ui.settings_tab import SettingsTabMixin
 from .ui.footer import FooterMixin
 
 
@@ -29,6 +32,7 @@ class URLGrabApp(
     HistoryTabMixin,
     BatchTabMixin,
     AudioTabMixin,
+    SettingsTabMixin,
     FooterMixin,
     ttk.Window,
 ):
@@ -47,6 +51,11 @@ class URLGrabApp(
         self._current_record = None
         self._last_clipboard_check = ""
         self._queue_update_pending = False
+
+        # Settings (with defaults filled in)
+        self.settings = dict(DEFAULT_SETTINGS)
+        for key, default in DEFAULT_SETTINGS.items():
+            self.settings[key] = self.config.get(key, default)
 
         self.url_var = tk.StringVar()
         self.output_path = tk.StringVar(value=BASE_DIR)
@@ -84,6 +93,7 @@ class URLGrabApp(
         self._build_history_tab()
         self._build_batch_tab()
         self._build_audio_tab()
+        self._build_settings_tab()
 
         self._build_footer(root)
 
@@ -125,6 +135,9 @@ class URLGrabApp(
         except Exception:
             pass
         cfg["output_folder"] = self.output_path.get()
+        # Persist settings
+        for key, value in self.settings.items():
+            cfg[key] = value
         storage.save_config(cfg)
 
     def _on_close(self):
@@ -158,6 +171,23 @@ class URLGrabApp(
         if os.path.isfile(COOKIES_FILE):
             return {"cookiefile": COOKIES_FILE}
         return {}
+
+    def _net_opts(self):
+        """Return proxy + rate limit options for yt-dlp."""
+        opts = {}
+        proxy = (self.settings.get("proxy") or "").strip()
+        if proxy:
+            opts["proxy"] = proxy
+        speed = parse_speed_limit(self.settings.get("speed_limit"))
+        if speed:
+            opts["ratelimit"] = speed
+        return opts
+
+    def _concurrency(self):
+        try:
+            return int(self.settings.get("concurrent_downloads", 1))
+        except Exception:
+            return 1
 
     def _set_status(self, text):
         self.status_var.set(text)

@@ -281,6 +281,7 @@ class BatchTabMixin:
             cookie_opts=self._cookie_opts(),
             default_out_dir=self.output_path.get(),
             default_height=1080,
+            concurrency=self._concurrency(),
         )
         self._set_status("Queue started.")
 

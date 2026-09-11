@@ -559,6 +559,7 @@ class FormatsTabMixin:
             sponsorblock=sponsor_on,
             sponsorblock_categories=sponsor_cats,
             custom_args=custom_args,
+            net_opts=self._net_opts(),
         )
         try:
             downloader.download(url, ydl_opts)

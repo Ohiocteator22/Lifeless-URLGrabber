@@ -38,9 +38,6 @@ def filter_and_sort_formats(formats):
     )
 
 
-# ----------------------------------------------------------------------
-# Codec / HDR label shortening
-# ----------------------------------------------------------------------
 def shorten_vcodec(codec):
     if not codec or codec == "none":
         return "—"
@@ -82,12 +79,7 @@ def hdr_label(fmt):
     return dr
 
 
-# ----------------------------------------------------------------------
-# Custom args parsing
-# ----------------------------------------------------------------------
 def parse_custom_args(raw):
-    """Turn a raw yt-dlp CLI string into an opts dict.
-    Returns (opts_dict, error_message_or_None)."""
     if not raw or not raw.strip():
         return {}, None
 
@@ -107,9 +99,6 @@ def parse_custom_args(raw):
         return {}, str(e)
 
 
-# ----------------------------------------------------------------------
-# Selector / timecode helpers
-# ----------------------------------------------------------------------
 def build_format_selector(height):
     return f"bestvideo[height<={height}]+bestaudio/best[height<={height}]"
 
@@ -134,9 +123,6 @@ def parse_timecode(text):
     return None
 
 
-# ----------------------------------------------------------------------
-# Build opts
-# ----------------------------------------------------------------------
 def build_ydl_opts(
     format_selector,
     out_dir,
@@ -151,6 +137,7 @@ def build_ydl_opts(
     sponsorblock=False,
     sponsorblock_categories="sponsor,selfpromo",
     custom_args="",
+    net_opts=None,
 ):
     custom_opts, _ = parse_custom_args(custom_args)
 
@@ -169,6 +156,7 @@ def build_ydl_opts(
         "fragment_retries": 10,
         "buffersize": 1024 * 1024,
         **(cookie_opts or {}),
+        **(net_opts or {}),
     }
 
     if subtitles:
@@ -222,7 +210,6 @@ def build_ydl_opts(
             }
         )
 
-    # Custom args go first, our keys win on collisions
     return {**custom_opts, **our_opts}
 
 
@@ -233,6 +220,7 @@ def build_audio_ydl_opts(
     progress_hook,
     audio_format="mp3",
     custom_args="",
+    net_opts=None,
 ):
     custom_opts, _ = parse_custom_args(custom_args)
 
@@ -255,6 +243,7 @@ def build_audio_ydl_opts(
         "retries": 10,
         "fragment_retries": 10,
         **(cookie_opts or {}),
+        **(net_opts or {}),
     }
 
     if ARIA2C_PATH:

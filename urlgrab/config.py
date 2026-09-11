@@ -47,6 +47,15 @@ COLORS = {
     "accent_hov":  "#8f74ff",
     "success":     "#10b981",
     "success_hov": "#14c98f",
+    "danger":      "#ef4444",
+    "danger_hov":  "#f56565",
+}
+
+
+DEFAULT_SETTINGS = {
+    "proxy": "",
+    "speed_limit": "",
+    "concurrent_downloads": 1,
 }
 
 
@@ -71,3 +80,33 @@ def resolution_label(height):
     if height >= 480:
         return "SD"
     return "LOW"
+
+
+def parse_speed_limit(text):
+    """Parse '5M', '500K', '1.5G', or a raw number of bytes.
+    Returns int bytes/sec, or None if empty/invalid."""
+    if not text:
+        return None
+    text = str(text).strip().upper()
+    if not text:
+        return None
+    try:
+        if text.endswith("K"):
+            return int(float(text[:-1]) * 1024)
+        if text.endswith("M"):
+            return int(float(text[:-1]) * 1024 * 1024)
+        if text.endswith("G"):
+            return int(float(text[:-1]) * 1024 * 1024 * 1024)
+        return int(float(text))
+    except ValueError:
+        return None
+
+
+def human_filesize(num_bytes):
+    if not num_bytes:
+        return "—"
+    for unit in ("B", "KB", "MB", "GB"):
+        if num_bytes < 1024:
+            return f"{num_bytes:.1f} {unit}"
+        num_bytes /= 1024
+    return f"{num_bytes:.1f} TB"

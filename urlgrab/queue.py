@@ -1,4 +1,5 @@
 import threading
+import time
 import uuid
 from datetime import datetime
 
@@ -15,13 +16,6 @@ DEFAULT_HEIGHT = 1080
 
 
 class QueueManager:
-    """Sequential download queue.
-
-    The UI reads from `items` and refreshes whenever `on_update` fires.
-    `on_update` is called from the worker thread — the UI must marshal
-    back to the main thread with `after()`.
-    """
-
     def __init__(self, on_update=None, on_item_done=None):
         self.items = []
         self._lock = threading.Lock()
@@ -77,13 +71,18 @@ class QueueManager:
         return self._worker is not None and self._worker.is_alive()
 
     def start(self, cookie_opts=None, default_out_dir=None,
-              default_height=DEFAULT_HEIGHT):
+              default_height=DEFAULT_HEIGHT, concurrency=1):
         if self.is_running():
             return
         self._stop_flag = False
         self._worker = threading.Thread(
             target=self._run,
-            args=(cookie_opts or {}, default_out_dir, default_height),
+            args=(
+                cookie_opts or {},
+                default_out_dir,
+                default_height,
+                max(1, min(int(concurrency or 1), 8)),
+            ),
             daemon=True,
         )
         self._worker.start()
@@ -92,30 +91,67 @@ class QueueManager:
         self._stop_flag = True
 
     # ------------------------------------------------------------------
-    # Worker
+    # Worker pool
     # ------------------------------------------------------------------
-    def _next_pending(self):
+    def _claim_next_pending(self):
+        """Atomically pick a pending item and mark it as downloading."""
         with self._lock:
             for item in self.items:
                 if item["status"] == STATUS_PENDING:
+                    item["status"] = STATUS_DOWNLOADING
+                    item["progress"] = 0.0
+                    item["error"] = None
                     return item
         return None
 
-    def _run(self, cookie_opts, default_out_dir, default_height):
+    def _has_pending(self):
+        with self._lock:
+            return any(i["status"] == STATUS_PENDING for i in self.items)
+
+    def _run(self, cookie_opts, default_out_dir, default_height, concurrency):
+        active = []
+
         while not self._stop_flag:
-            item = self._next_pending()
-            if not item:
+            # Clean finished workers
+            active = [t for t in active if t.is_alive()]
+
+            # Start new ones while we have free slots
+            while len(active) < concurrency and not self._stop_flag:
+                item = self._claim_next_pending()
+                if not item:
+                    break
+                t = threading.Thread(
+                    target=self._process,
+                    args=(
+                        item,
+                        cookie_opts,
+                        default_out_dir,
+                        default_height,
+                    ),
+                    daemon=True,
+                )
+                t.start()
+                active.append(t)
+                self.on_update()
+
+            # Nothing running and nothing left to pick up → done
+            if not active and not self._has_pending():
                 break
-            self._process(item, cookie_opts, default_out_dir, default_height)
+
+            time.sleep(0.15)
+
+        # Wait for currently running workers to finish
+        for t in active:
+            t.join()
+
         self.on_update()
 
-    def _process(self, item, cookie_opts, out_dir, default_height):
-        item["status"] = STATUS_DOWNLOADING
-        item["progress"] = 0.0
-        item["error"] = None
-        self.on_update()
+    # ------------------------------------------------------------------
+    # Per-item processing
+    # ------------------------------------------------------------------
+    def _process(self, item, cookie_opts, default_out_dir, default_height):
+        # Item is already marked as downloading by _claim_next_pending
 
-        # Resolve metadata if we don't know the height yet
         if not item.get("height"):
             try:
                 info = downloader.fetch_formats(item["url"], cookie_opts)
@@ -157,7 +193,7 @@ class QueueManager:
             format_selector = downloader.build_format_selector(item["height"])
             ydl_opts = downloader.build_ydl_opts(
                 format_selector=format_selector,
-                out_dir=item["out_dir"] or out_dir,
+                out_dir=item["out_dir"] or default_out_dir,
                 merge_ext=item["container"],
                 cookie_opts=cookie_opts,
                 progress_hook=hook,

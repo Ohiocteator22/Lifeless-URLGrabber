@@ -150,6 +150,7 @@ class AudioTabMixin:
             bitrate=bitrate,
             cookie_opts=self._cookie_opts(),
             progress_hook=self._progress_hook,
+            net_opts=self._net_opts(),
         )
         try:
             downloader.download(url, ydl_opts)
