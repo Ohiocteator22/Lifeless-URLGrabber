@@ -1,4 +1,5 @@
 import os
+import shlex
 
 import yt_dlp
 
@@ -37,13 +38,83 @@ def filter_and_sort_formats(formats):
     )
 
 
+# ----------------------------------------------------------------------
+# Codec / HDR label shortening
+# ----------------------------------------------------------------------
+def shorten_vcodec(codec):
+    if not codec or codec == "none":
+        return "—"
+    c = codec.lower()
+    if c.startswith("avc") or c.startswith("h264"):
+        return "h264"
+    if c.startswith("hvc") or c.startswith("hev") or c.startswith("h265"):
+        return "h265"
+    if c.startswith("av01") or c.startswith("av1"):
+        return "av1"
+    if c.startswith("vp09") or c.startswith("vp9"):
+        return "vp9"
+    if c.startswith("vp8"):
+        return "vp8"
+    return c.split(".")[0][:8]
+
+
+def shorten_acodec(codec):
+    if not codec or codec == "none":
+        return "—"
+    c = codec.lower()
+    if c.startswith("mp4a") or c.startswith("aac"):
+        return "aac"
+    if c.startswith("opus"):
+        return "opus"
+    if c.startswith("vorbis"):
+        return "vorbis"
+    if c.startswith("mp3"):
+        return "mp3"
+    if c.startswith("ac-3") or c.startswith("eac3") or c.startswith("ac3"):
+        return "ac3"
+    return c.split(".")[0][:8]
+
+
+def hdr_label(fmt):
+    dr = fmt.get("dynamic_range") or ""
+    if not dr or dr.upper() == "SDR":
+        return "—"
+    return dr
+
+
+# ----------------------------------------------------------------------
+# Custom args parsing
+# ----------------------------------------------------------------------
+def parse_custom_args(raw):
+    """Turn a raw yt-dlp CLI string into an opts dict.
+    Returns (opts_dict, error_message_or_None)."""
+    if not raw or not raw.strip():
+        return {}, None
+
+    try:
+        from yt_dlp import parse_options
+    except ImportError:
+        try:
+            from yt_dlp.options import parseOpts as parse_options
+        except ImportError:
+            return {}, "yt-dlp parse_options is unavailable"
+
+    try:
+        tokens = shlex.split(raw, posix=True)
+        _, opts, _ = parse_options(tokens)
+        return opts or {}, None
+    except Exception as e:
+        return {}, str(e)
+
+
+# ----------------------------------------------------------------------
+# Selector / timecode helpers
+# ----------------------------------------------------------------------
 def build_format_selector(height):
     return f"bestvideo[height<={height}]+bestaudio/best[height<={height}]"
 
 
 def parse_timecode(text):
-    """Parse 'HH:MM:SS', 'MM:SS', or 'SS' into seconds.
-    Returns None if the string is empty or unparseable."""
     if text is None:
         return None
     text = str(text).strip()
@@ -63,6 +134,9 @@ def parse_timecode(text):
     return None
 
 
+# ----------------------------------------------------------------------
+# Build opts
+# ----------------------------------------------------------------------
 def build_ydl_opts(
     format_selector,
     out_dir,
@@ -74,8 +148,13 @@ def build_ydl_opts(
     thumbnail=False,
     trim_start=None,
     trim_end=None,
+    sponsorblock=False,
+    sponsorblock_categories="sponsor,selfpromo",
+    custom_args="",
 ):
-    ydl_opts = {
+    custom_opts, _ = parse_custom_args(custom_args)
+
+    our_opts = {
         "format": format_selector,
         "outtmpl": os.path.join(out_dir, "%(title)s.%(ext)s"),
         "merge_output_format": merge_ext,
@@ -93,19 +172,20 @@ def build_ydl_opts(
     }
 
     if subtitles:
-        ydl_opts.update(
+        langs = [
+            s.strip() for s in str(subtitle_langs).split(",") if s.strip()
+        ] or ["en"]
+        our_opts.update(
             {
                 "writesubtitles": True,
                 "writeautomaticsub": True,
-                "subtitleslangs": [
-                    s.strip() for s in str(subtitle_langs).split(",") if s.strip()
-                ] or ["en"],
+                "subtitleslangs": langs,
                 "subtitlesformat": "srt/best",
             }
         )
 
     if thumbnail:
-        ydl_opts["writethumbnail"] = True
+        our_opts["writethumbnail"] = True
 
     if trim_start is not None or trim_end is not None:
         start = trim_start if trim_start is not None else 0
@@ -114,11 +194,17 @@ def build_ydl_opts(
         def _ranges(info_dict, ydl):
             return [{"start_time": start, "end_time": end}]
 
-        ydl_opts["download_ranges"] = _ranges
-        ydl_opts["force_keyframes_at_cuts"] = True
+        our_opts["download_ranges"] = _ranges
+        our_opts["force_keyframes_at_cuts"] = True
+
+    if sponsorblock:
+        cats = [
+            c.strip() for c in str(sponsorblock_categories).split(",") if c.strip()
+        ]
+        our_opts["sponsorblock_remove"] = set(cats or ["sponsor"])
 
     if ARIA2C_PATH:
-        ydl_opts.update(
+        our_opts.update(
             {
                 "external_downloader": ARIA2C_PATH,
                 "external_downloader_args": {
@@ -136,7 +222,8 @@ def build_ydl_opts(
             }
         )
 
-    return ydl_opts
+    # Custom args go first, our keys win on collisions
+    return {**custom_opts, **our_opts}
 
 
 def build_audio_ydl_opts(
@@ -145,8 +232,11 @@ def build_audio_ydl_opts(
     cookie_opts,
     progress_hook,
     audio_format="mp3",
+    custom_args="",
 ):
-    ydl_opts = {
+    custom_opts, _ = parse_custom_args(custom_args)
+
+    our_opts = {
         "format": "bestaudio/best",
         "outtmpl": os.path.join(out_dir, "%(title)s.%(ext)s"),
         "ffmpeg_location": FFMPEG_DIR,
@@ -168,7 +258,7 @@ def build_audio_ydl_opts(
     }
 
     if ARIA2C_PATH:
-        ydl_opts.update(
+        our_opts.update(
             {
                 "external_downloader": ARIA2C_PATH,
                 "external_downloader_args": {
@@ -186,7 +276,7 @@ def build_audio_ydl_opts(
             }
         )
 
-    return ydl_opts
+    return {**custom_opts, **our_opts}
 
 
 def download(url, ydl_opts):

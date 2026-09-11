@@ -22,10 +22,25 @@ class FormatsTabMixin:
         inner = tk.Frame(tab, bg=COLORS["surface"])
         inner.pack(fill=BOTH, expand=True, padx=18, pady=18)
 
-        tree_wrap = tk.Frame(inner, bg=COLORS["surface"])
+        self._build_formats_tree(inner)
+        self._build_options_row(inner)
+        self._build_format_context_menu()
+
+    def _build_formats_tree(self, parent):
+        tree_wrap = tk.Frame(parent, bg=COLORS["surface"])
         tree_wrap.pack(fill=BOTH, expand=True)
 
-        cols = ("quality", "resolution", "fps", "format", "size", "id")
+        cols = (
+            "quality",
+            "resolution",
+            "fps",
+            "vcodec",
+            "acodec",
+            "hdr",
+            "container",
+            "size",
+            "id",
+        )
         self.tree = ttk.Treeview(
             tree_wrap,
             columns=cols,
@@ -34,12 +49,15 @@ class FormatsTabMixin:
             selectmode="browse",
         )
         headings = {
-            "quality":    ("Quality",    110),
-            "resolution": ("Resolution", 120),
-            "fps":        ("FPS",         70),
-            "format":     ("Container",  110),
-            "size":       ("Size",       120),
-            "id":         ("Format ID",  100),
+            "quality":    ("Quality",     75),
+            "resolution": ("Resolution",  90),
+            "fps":        ("FPS",         50),
+            "vcodec":     ("Video",       65),
+            "acodec":     ("Audio",       55),
+            "hdr":        ("HDR",         65),
+            "container":  ("Container",   75),
+            "size":       ("Size",        90),
+            "id":         ("Format ID",   85),
         }
         for c, (text, width) in headings.items():
             self.tree.heading(c, text=text, anchor=W)
@@ -60,9 +78,9 @@ class FormatsTabMixin:
         vsb.pack(side=RIGHT, fill=Y)
         self.tree.bind("<Double-1>", lambda e: self.download_selected())
 
-        self._build_options_row(inner)
-        self._build_format_context_menu()
-
+    # ------------------------------------------------------------------
+    # Options
+    # ------------------------------------------------------------------
     def _build_options_row(self, parent):
         opts = tk.Frame(
             parent,
@@ -72,19 +90,21 @@ class FormatsTabMixin:
         )
         opts.pack(fill=X, pady=(14, 0))
 
-        opts_inner = tk.Frame(opts, bg=COLORS["surface_2"])
-        opts_inner.pack(fill=X, padx=14, pady=12)
+        inner = tk.Frame(opts, bg=COLORS["surface_2"])
+        inner.pack(fill=X, padx=14, pady=12)
 
-        checks = tk.Frame(opts_inner, bg=COLORS["surface_2"])
+        # --- Checkbox row ---
+        checks = tk.Frame(inner, bg=COLORS["surface_2"])
         checks.pack(fill=X)
 
         self.opt_subs = tk.BooleanVar(value=False)
         self.opt_thumb = tk.BooleanVar(value=False)
         self.opt_trim = tk.BooleanVar(value=False)
+        self.opt_sponsor = tk.BooleanVar(value=False)
 
         tk.Checkbutton(
             checks,
-            text="Include subtitles (.srt)",
+            text="Subtitles (.srt)",
             variable=self.opt_subs,
             bg=COLORS["surface_2"],
             fg=COLORS["text"],
@@ -94,12 +114,12 @@ class FormatsTabMixin:
             font=("Segoe UI", 10),
             borderwidth=0,
             highlightthickness=0,
-            command=self._on_subs_toggle,
-        ).pack(side=LEFT, padx=(0, 20))
+            command=self._refresh_dynamic_row,
+        ).pack(side=LEFT, padx=(0, 16))
 
         tk.Checkbutton(
             checks,
-            text="Download thumbnail (.jpg)",
+            text="Thumbnail (.jpg)",
             variable=self.opt_thumb,
             bg=COLORS["surface_2"],
             fg=COLORS["text"],
@@ -109,7 +129,7 @@ class FormatsTabMixin:
             font=("Segoe UI", 10),
             borderwidth=0,
             highlightthickness=0,
-        ).pack(side=LEFT, padx=(0, 20))
+        ).pack(side=LEFT, padx=(0, 16))
 
         tk.Checkbutton(
             checks,
@@ -123,67 +143,150 @@ class FormatsTabMixin:
             font=("Segoe UI", 10),
             borderwidth=0,
             highlightthickness=0,
-            command=self._on_trim_toggle,
+            command=self._refresh_dynamic_row,
+        ).pack(side=LEFT, padx=(0, 16))
+
+        tk.Checkbutton(
+            checks,
+            text="Skip sponsor segments",
+            variable=self.opt_sponsor,
+            bg=COLORS["surface_2"],
+            fg=COLORS["text"],
+            activebackground=COLORS["surface_2"],
+            activeforeground=COLORS["text"],
+            selectcolor=COLORS["surface"],
+            font=("Segoe UI", 10),
+            borderwidth=0,
+            highlightthickness=0,
+            command=self._refresh_dynamic_row,
         ).pack(side=LEFT)
 
-        self.subs_lang_var = tk.StringVar(value="en")
-        self.subs_lang_entry = ttk.Entry(
-            checks,
-            textvariable=self.subs_lang_var,
-            width=10,
-            font=("Segoe UI", 10),
-        )
-        self.subs_lang_label = tk.Label(
-            checks,
-            text=" langs:",
-            bg=COLORS["surface_2"],
-            fg=COLORS["text_dim"],
-            font=("Segoe UI", 10),
-        )
+        # --- Dynamic fields row (hidden until needed) ---
+        self.dynamic_row = tk.Frame(inner, bg=COLORS["surface_2"])
 
-        self.trim_row = tk.Frame(opts_inner, bg=COLORS["surface_2"])
-
-        self.trim_start_var = tk.StringVar(value="00:00:00")
-        self.trim_end_var = tk.StringVar(value="")
-
+        # Subs group
+        self.subs_group = tk.Frame(self.dynamic_row, bg=COLORS["surface_2"])
         tk.Label(
-            self.trim_row,
+            self.subs_group,
+            text="Langs:",
+            bg=COLORS["surface_2"],
+            fg=COLORS["text"],
+            font=("Segoe UI", 10),
+        ).pack(side=LEFT)
+        self.subs_lang_var = tk.StringVar(value="en")
+        ttk.Entry(
+            self.subs_group,
+            textvariable=self.subs_lang_var,
+            width=14,
+            font=("Segoe UI", 10),
+        ).pack(side=LEFT, padx=(6, 0))
+
+        # Sponsor group
+        self.sponsor_group = tk.Frame(self.dynamic_row, bg=COLORS["surface_2"])
+        tk.Label(
+            self.sponsor_group,
+            text="Categories:",
+            bg=COLORS["surface_2"],
+            fg=COLORS["text"],
+            font=("Segoe UI", 10),
+        ).pack(side=LEFT)
+        self.sponsor_cats_var = tk.StringVar(value="sponsor,selfpromo")
+        ttk.Entry(
+            self.sponsor_group,
+            textvariable=self.sponsor_cats_var,
+            width=28,
+            font=("Segoe UI", 10),
+        ).pack(side=LEFT, padx=(6, 0))
+
+        # Trim group
+        self.trim_group = tk.Frame(self.dynamic_row, bg=COLORS["surface_2"])
+        tk.Label(
+            self.trim_group,
             text="Start:",
             bg=COLORS["surface_2"],
             fg=COLORS["text"],
             font=("Segoe UI", 10),
         ).pack(side=LEFT)
-
+        self.trim_start_var = tk.StringVar(value="00:00:00")
         ttk.Entry(
-            self.trim_row,
+            self.trim_group,
             textvariable=self.trim_start_var,
-            width=12,
+            width=11,
             font=("Segoe UI", 10),
-        ).pack(side=LEFT, padx=(6, 14))
-
+        ).pack(side=LEFT, padx=(6, 12))
         tk.Label(
-            self.trim_row,
+            self.trim_group,
             text="End:",
             bg=COLORS["surface_2"],
             fg=COLORS["text"],
             font=("Segoe UI", 10),
         ).pack(side=LEFT)
-
+        self.trim_end_var = tk.StringVar(value="")
         ttk.Entry(
-            self.trim_row,
+            self.trim_group,
             textvariable=self.trim_end_var,
-            width=12,
+            width=11,
             font=("Segoe UI", 10),
-        ).pack(side=LEFT, padx=(6, 14))
-
+        ).pack(side=LEFT, padx=(6, 12))
         tk.Label(
-            self.trim_row,
-            text="(HH:MM:SS — leave End empty to grab to the end)",
+            self.trim_group,
+            text="(empty End = to the end)",
             bg=COLORS["surface_2"],
             fg=COLORS["text_dim"],
             font=("Segoe UI", 9),
         ).pack(side=LEFT)
 
+        # --- Custom args row ---
+        args_row = tk.Frame(inner, bg=COLORS["surface_2"])
+        args_row.pack(fill=X, pady=(12, 0))
+
+        tk.Label(
+            args_row,
+            text="Custom yt-dlp args:",
+            bg=COLORS["surface_2"],
+            fg=COLORS["text"],
+            font=("Segoe UI", 10),
+        ).pack(side=LEFT)
+
+        self.custom_args_var = tk.StringVar(value="")
+        ttk.Entry(
+            args_row,
+            textvariable=self.custom_args_var,
+            font=("Consolas", 10),
+        ).pack(side=LEFT, fill=X, expand=True, padx=(10, 0))
+
+        tk.Label(
+            args_row,
+            text="  e.g. --proxy socks5://127.0.0.1:1080",
+            bg=COLORS["surface_2"],
+            fg=COLORS["text_dim"],
+            font=("Segoe UI", 9),
+        ).pack(side=LEFT)
+
+    def _refresh_dynamic_row(self):
+        self.subs_group.pack_forget()
+        self.sponsor_group.pack_forget()
+        self.trim_group.pack_forget()
+
+        any_visible = False
+        if self.opt_subs.get():
+            self.subs_group.pack(side=LEFT, padx=(0, 20))
+            any_visible = True
+        if self.opt_sponsor.get():
+            self.sponsor_group.pack(side=LEFT, padx=(0, 20))
+            any_visible = True
+        if self.opt_trim.get():
+            self.trim_group.pack(side=LEFT)
+            any_visible = True
+
+        if any_visible:
+            self.dynamic_row.pack(fill=X, pady=(10, 0))
+        else:
+            self.dynamic_row.pack_forget()
+
+    # ------------------------------------------------------------------
+    # Context menu
+    # ------------------------------------------------------------------
     def _build_format_context_menu(self):
         self.format_menu = tk.Menu(
             self,
@@ -210,26 +313,6 @@ class FormatsTabMixin:
         )
         self.tree.bind("<Button-3>", self._show_format_menu)
 
-    # ------------------------------------------------------------------
-    # Options toggles
-    # ------------------------------------------------------------------
-    def _on_subs_toggle(self):
-        if self.opt_subs.get():
-            self.subs_lang_label.pack(side=LEFT, padx=(6, 2))
-            self.subs_lang_entry.pack(side=LEFT)
-        else:
-            self.subs_lang_label.pack_forget()
-            self.subs_lang_entry.pack_forget()
-
-    def _on_trim_toggle(self):
-        if self.opt_trim.get():
-            self.trim_row.pack(fill=X, pady=(10, 0))
-        else:
-            self.trim_row.pack_forget()
-
-    # ------------------------------------------------------------------
-    # Context menu
-    # ------------------------------------------------------------------
     def _show_format_menu(self, event):
         row = self.tree.identify_row(event.y)
         if not row:
@@ -313,7 +396,7 @@ class FormatsTabMixin:
 
         for i, f in enumerate(formats):
             height = f["height"]
-            ext = (f.get("ext") or "???").upper()
+            ext = (f.get("ext") or "???").lower()
             fps = f.get("fps")
             fps_str = f"{fps:.0f}" if fps else "—"
             size = f.get("filesize") or f.get("filesize_approx")
@@ -327,7 +410,10 @@ class FormatsTabMixin:
                     resolution_label(height),
                     f"{height}p",
                     fps_str,
-                    f".{ext.lower()}",
+                    downloader.shorten_vcodec(f.get("vcodec")),
+                    downloader.shorten_acodec(f.get("acodec")),
+                    downloader.hdr_label(f),
+                    f".{ext}",
                     size_str,
                     f["format_id"],
                 ),
@@ -376,6 +462,19 @@ class FormatsTabMixin:
         subs_on = self.opt_subs.get()
         subs_langs = self.subs_lang_var.get().strip() or "en"
         thumb_on = self.opt_thumb.get()
+        sponsor_on = self.opt_sponsor.get()
+        sponsor_cats = self.sponsor_cats_var.get().strip() or "sponsor"
+        custom_args = self.custom_args_var.get().strip()
+
+        # Validate custom args before we waste time
+        if custom_args:
+            _, err = downloader.parse_custom_args(custom_args)
+            if err:
+                messagebox.showerror(
+                    "Invalid custom args",
+                    f"Could not parse your custom yt-dlp args:\n\n{err}",
+                )
+                return
 
         trim_start = None
         trim_end = None
@@ -417,17 +516,17 @@ class FormatsTabMixin:
 
         threading.Thread(
             target=self._download_thread,
-            args=(
-                url,
-                format_selector,
-                out_dir,
-                merge_ext,
-                subs_on,
-                subs_langs,
-                thumb_on,
-                trim_start,
-                trim_end,
-            ),
+            args=(url, format_selector, out_dir, merge_ext),
+            kwargs={
+                "subs_on": subs_on,
+                "subs_langs": subs_langs,
+                "thumb_on": thumb_on,
+                "trim_start": trim_start,
+                "trim_end": trim_end,
+                "sponsor_on": sponsor_on,
+                "sponsor_cats": sponsor_cats,
+                "custom_args": custom_args,
+            },
             daemon=True,
         ).start()
 
@@ -437,11 +536,14 @@ class FormatsTabMixin:
         format_selector,
         out_dir,
         merge_ext,
-        subs_on,
-        subs_langs,
-        thumb_on,
-        trim_start,
-        trim_end,
+        subs_on=False,
+        subs_langs="en",
+        thumb_on=False,
+        trim_start=None,
+        trim_end=None,
+        sponsor_on=False,
+        sponsor_cats="sponsor",
+        custom_args="",
     ):
         ydl_opts = downloader.build_ydl_opts(
             format_selector=format_selector,
@@ -454,6 +556,9 @@ class FormatsTabMixin:
             thumbnail=thumb_on,
             trim_start=trim_start,
             trim_end=trim_end,
+            sponsorblock=sponsor_on,
+            sponsorblock_categories=sponsor_cats,
+            custom_args=custom_args,
         )
         try:
             downloader.download(url, ydl_opts)
