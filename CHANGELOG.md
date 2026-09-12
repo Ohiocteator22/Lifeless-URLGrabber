@@ -15,7 +15,7 @@ _Nothing yet — ideas live in the issue tracker._
 
 ---
 
-## [1.1.7FD] - 2024-XX-XX
+## [1.1.7FD] - 2026-XX-XX
 
 **Feature-Dense release.** Turns URLGrab into a proper desktop app
 with tray integration, drag-and-drop, and a built-in log viewer.
@@ -47,7 +47,7 @@ with tray integration, drag-and-drop, and a built-in log viewer.
 
 ---
 
-## [1.1.6FD] - 2024-XX-XX
+## [1.1.6FD] - 2026-XX-XX
 
 **Feature-Dense release.** Ships the entire power-user toolkit in one
 drop — settings, themes, onboarding, updates, and notifications.
@@ -103,7 +103,7 @@ drop — settings, themes, onboarding, updates, and notifications.
 
 ---
 
-## [1.1.4FD] - 2024-XX-XX
+## [1.1.4FD] - 2026-XX-XX
 
 **Feature-Dense release.** Four major features shipped together —
 audio extraction, subtitles, thumbnails, and video trimming.
@@ -146,7 +146,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 
 ---
 
-## [1.1.3] - 2024-XX-XX
+## [1.1.3] - 2026-XX-XX
 
 ### Added
 - **BATCH tab** — full download queue with playlist + multi-link support
@@ -170,7 +170,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 
 ---
 
-## [1.1.2] - 2024-XX-XX
+## [1.1.2] - 2026-XX-XX
 
 ### Added
 - Window geometry memory — position and size restore on next launch
@@ -184,7 +184,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 
 ---
 
-## [1.1.1] - 2024-XX-XX
+## [1.1.1] - 2026-XX-XX
 
 ### Added
 - **Paste** button next to the URL field — reads clipboard with one click
@@ -196,7 +196,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 
 ---
 
-## [1.1.0] - 2024-XX-XX
+## [1.1.0] - 2026-XX-XX
 
 ### Added
 - **HISTORY tab** — last 50 downloads stored in `history.json`
@@ -215,7 +215,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 
 ---
 
-## [1.0.0] - 2024-XX-XX
+## [1.0.0] - 2026-XX-XX
 
 ### Added
 - First public release
