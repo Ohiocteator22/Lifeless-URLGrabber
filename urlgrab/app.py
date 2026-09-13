@@ -16,12 +16,12 @@ from .config import (
     DEFAULT_SETTINGS,
     MIN_SIZE,
     looks_like_url,
-    parse_speed_limit,
     resolution_label,
 )
 from . import storage
 from . import logger
 from . import profiles as profiles_mod
+from . import bandwidth
 from .queue import QueueManager
 from .theme import apply_theme
 from .updater import check_for_update
@@ -111,6 +111,9 @@ class URLGrabApp(
         self.queue = QueueManager(
             on_update=self._queue_changed,
             on_item_done=self._queue_item_done,
+        )
+        self.queue.auto_retry = int(
+            self.settings.get("queue_auto_retry", 2)
         )
 
         self._restore_saved_state()
@@ -418,14 +421,16 @@ class URLGrabApp(
             return {"cookiefile": COOKIES_FILE}
         return {}
 
-    def _net_opts(self):
+    def _net_opts(self, for_queue=False):
         opts = {}
         proxy = (self.settings.get("proxy") or "").strip()
         if proxy:
             opts["proxy"] = proxy
-        speed = parse_speed_limit(self.settings.get("speed_limit"))
-        if speed:
-            opts["ratelimit"] = speed
+        limit = bandwidth.get_effective_limit(
+            self.settings, for_queue=for_queue
+        )
+        if limit:
+            opts["ratelimit"] = limit
         return opts
 
     def _concurrency(self):

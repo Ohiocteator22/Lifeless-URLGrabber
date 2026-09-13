@@ -27,11 +27,10 @@ if not os.path.isfile(ARIA2C_PATH):
     alt = os.path.join(BASE_DIR, "aria2c.exe")
     ARIA2C_PATH = alt if os.path.isfile(alt) else None
 
-COOKIES_FILE = user_path("cookies.txt")
-HISTORY_FILE = user_path("history.json")
-CONFIG_FILE  = user_path("config.json")
+COOKIES_FILE  = user_path("cookies.txt")
+HISTORY_FILE  = user_path("history.json")
+CONFIG_FILE   = user_path("config.json")
 PROFILES_FILE = user_path("profiles.json")
-
 
 MAX_HISTORY = 50
 DEFAULT_GEOMETRY = "980x760"
@@ -62,6 +61,15 @@ DEFAULT_SETTINGS = {
     "notifications": True,
     "first_run_complete": False,
     "tray_on_close": True,
+    # --- Bandwidth / network manager ---
+    "bandwidth_apply_to_queue": True,
+    "bandwidth_night_mode": False,
+    "bandwidth_night_start": "02:00",
+    "bandwidth_night_end": "08:00",
+    "bandwidth_pause_on_drop": False,
+    "bandwidth_wifi_only": False,
+    # --- Queue ---
+    "queue_auto_retry": 2,
 }
 
 

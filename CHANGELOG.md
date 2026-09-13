@@ -15,12 +15,49 @@ _Nothing yet — ideas live in the issue tracker._
 
 ---
 
+## [1.1.8FD] - 2024-XX-XX
+
+### Added
+
+- **Advanced Queue**
+  - Pause/Resume individual items (right-click)
+  - Pause/Resume the entire queue (button toggles)
+  - Move items up/down to reorder
+  - Retry failed items, or Retry All Failed
+  - Auto-retry failed downloads (0-5 attempts per item)
+  - Priority per item — higher = downloaded first
+  - Per-item format override (height, container)
+  - Per-item output folder override
+  - Export / Import queue as JSON
+- **Bandwidth / Network Manager**
+  - Global bandwidth limit (existing speed_limit)
+  - Apply to queue toggle (off = queue ignores the limit)
+  - Wi-Fi only mode — blocks downloads on metered connections
+  - Pause queue when a download fails (for connection drops)
+  - Night mode — no limit during a configurable window
+- New module: `bandwidth.py`
+- New module: `ui/item_edit_dialog.py`
+- New config keys: `bandwidth_*`, `queue_auto_retry`
+
+### Changed
+
+- SETTINGS tab is now scrollable
+- BANDWIDTH section replaces the old speed-limit row
+- BATCH queue tree shows priority column, pauses marked with ⏸
+- `QueueManager` gained pause/resume, retry, reorder, update, import/export
+- `_net_opts()` reads from the bandwidth module
+
+### Fixed
+
+- Item output folder and format now respected when downloading
+
 ## [1.1.7FD] - 2026-XX-XX
 
 **Feature-Dense release.** Turns URLGrab into a proper desktop app
 with tray integration, drag-and-drop, and a built-in log viewer.
 
 ### Added
+
 - **System tray icon** — minimize instead of quitting
   - Right-click menu: Show URLGrab / New download / Quit
   - Toggle in SETTINGS → System (on by default)
@@ -38,6 +75,7 @@ with tray integration, drag-and-drop, and a built-in log viewer.
 - New dependencies: `pystray`, `Pillow`, `tkinterdnd2`
 
 ### Changed
+
 - **Window icon fix** — `icon.ico` now resolves correctly in both dev
   mode (project root) and frozen mode (`_MEIPASS`)
 - **Close button** now minimizes to tray when the tray is active and
@@ -53,6 +91,7 @@ with tray integration, drag-and-drop, and a built-in log viewer.
 drop — settings, themes, onboarding, updates, and notifications.
 
 ### Added
+
 - **SETTINGS tab** — new home for all configuration
 - **Cookie manager**
   - Import cookies.txt via file picker (copies into the app folder)
@@ -84,6 +123,7 @@ drop — settings, themes, onboarding, updates, and notifications.
   - Toggle on/off in SETTINGS
 
 ### Changed
+
 - `downloader.build_ydl_opts` and `build_audio_ydl_opts` accept a
   `net_opts` dict for proxy + rate limit
 - `QueueManager.start` accepts a `concurrency` parameter
@@ -91,13 +131,15 @@ drop — settings, themes, onboarding, updates, and notifications.
 - `app.py` runs post-launch checks (wizard → update check)
 
 ### Added (new modules)
+
 - `urlgrab/theme.py` — theme presets and live palette swapping
 - `urlgrab/updater.py` — GitHub release version checker
 - `urlgrab/wizard.py` — first-run setup dialog
 - `urlgrab/notifier.py` — borderless toast popup
 
 ### Notes
-- Auto-update only *notifies* — it never replaces files on disk
+
+- Auto-update only _notifies_ — it never replaces files on disk
 - Wizard appears once; a settings key marks it as completed
 - All new features use the existing bundled `ffmpeg.exe` and yt-dlp
 
@@ -109,6 +151,7 @@ drop — settings, themes, onboarding, updates, and notifications.
 audio extraction, subtitles, thumbnails, and video trimming.
 
 ### Added
+
 - **AUDIO tab** — extract MP3 audio from any supported site
   - Bitrate picker: 128 / 192 / 256 / 320 kbps (default: 192)
   - Standalone `.mp3` output, written to the current download folder
@@ -132,16 +175,19 @@ audio extraction, subtitles, thumbnails, and video trimming.
     `trim_start`, `trim_end` parameters
 
 ### Changed
+
 - Notebook now has four tabs: FORMATS, HISTORY, BATCH, AUDIO
 - FORMATS tab gained an **options row** below the formats table
 - Subtitle / trim fields appear inline only when their checkbox is ticked
 
 ### Fixed
+
 - Timecode parser tolerates empty strings and malformed input
 - Trim download warns the user if the checkbox is enabled but both
   fields are blank
 
 ### Notes
+
 - All four features run on the existing bundled `ffmpeg.exe`
 
 ---
@@ -149,6 +195,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 ## [1.1.3] - 2026-XX-XX
 
 ### Added
+
 - **BATCH tab** — full download queue with playlist + multi-link support
   - Paste multiple URLs (one per line) → **Add URLs** to enqueue
   - **Load Playlist** expands a playlist URL into individual items
@@ -161,10 +208,12 @@ audio extraction, subtitles, thumbnails, and video trimming.
 - New module: `urlgrab/ui/batch_tab.py` — the BATCH tab UI
 
 ### Changed
+
 - `urlgrab/app.py` wires the new `BatchTabMixin` and `QueueManager` in
 - The notebook now has three tabs: FORMATS, HISTORY, BATCH
 
 ### Fixed
+
 - Queue updates throttled at 50 ms to prevent UI flooding
 - Queue shutdown on window close is now graceful
 
@@ -173,12 +222,14 @@ audio extraction, subtitles, thumbnails, and video trimming.
 ## [1.1.2] - 2026-XX-XX
 
 ### Added
+
 - Window geometry memory — position and size restore on next launch
 - Output folder memory — last chosen folder restores on launch
   (only if the folder still exists)
 - `config.json` file next to the app stores these settings
 
 ### Changed
+
 - `choose_folder` now saves the config immediately
 - Window close handler (`WM_DELETE_WINDOW`) saves config before exiting
 
@@ -187,11 +238,13 @@ audio extraction, subtitles, thumbnails, and video trimming.
 ## [1.1.1] - 2026-XX-XX
 
 ### Added
+
 - **Paste** button next to the URL field — reads clipboard with one click
 - Auto-paste on focus — clicking into an empty URL field fills it
   automatically if the clipboard contains a URL
 
 ### Changed
+
 - Status bar now reports paste actions
 
 ---
@@ -199,6 +252,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 ## [1.1.0] - 2026-XX-XX
 
 ### Added
+
 - **HISTORY tab** — last 50 downloads stored in `history.json`
   - Double-click a row to open its folder
   - Right-click a row → Open Folder / Copy Source URL / Remove from History
@@ -210,6 +264,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 - Window icon loaded from `icon.ico` (bundled with PyInstaller)
 
 ### Changed
+
 - FORMATS and HISTORY now live in tabs
 - URL card and download footer stay visible across tabs
 
@@ -218,6 +273,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 ## [1.0.0] - 2026-XX-XX
 
 ### Added
+
 - First public release
 - Paste a video URL, fetch all available formats, download in any resolution
 - 4K / 2K / FHD / HD / SD resolution labels
