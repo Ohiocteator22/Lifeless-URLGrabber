@@ -79,6 +79,108 @@ def hdr_label(fmt):
     return dr
 
 
+def is_hdr(fmt):
+    return hdr_label(fmt) != "—"
+
+
+def estimate_size(fmt):
+    size = fmt.get("filesize") or fmt.get("filesize_approx")
+    if size:
+        return size
+    tbr = fmt.get("tbr")
+    duration = fmt.get("duration")
+    if tbr and duration:
+        return int((tbr * 1000 / 8) * duration)
+    return None
+
+
+# ----------------------------------------------------------------------
+# Smart pick
+# ----------------------------------------------------------------------
+def score_format(fmt, profile):
+    """Return a higher-is-better score for `fmt` against `profile`."""
+    score = 0.0
+
+    max_h = profile.get("max_height") or 0
+    h = fmt.get("height") or 0
+
+    if max_h and h > max_h:
+        score -= 5000
+    else:
+        score += h / 10.0
+
+    min_fps = profile.get("min_fps") or 0
+    fps = fmt.get("fps") or 0
+    if min_fps:
+        if fps >= min_fps:
+            score += 25
+        else:
+            score -= 15
+
+    vcodec_pref = (profile.get("video_codec_pref") or "any").lower()
+    vcodec = shorten_vcodec(fmt.get("vcodec"))
+    if vcodec_pref != "any":
+        if vcodec == vcodec_pref:
+            score += 20
+        else:
+            score -= 5
+
+    acodec_pref = (profile.get("audio_codec_pref") or "any").lower()
+    acodec = shorten_acodec(fmt.get("acodec"))
+    if acodec_pref != "any":
+        if acodec == acodec_pref:
+            score += 10
+
+    if profile.get("prefer_hdr"):
+        if is_hdr(fmt):
+            score += 15
+
+    container_pref = (profile.get("container") or "mp4").lower()
+    ext = (fmt.get("ext") or "").lower()
+    if ext == container_pref:
+        score += 10
+
+    if fmt.get("acodec") and fmt.get("acodec") != "none":
+        score += 5
+
+    return score
+
+
+def pick_smart_format(formats, profile):
+    if not formats:
+        return None
+    if not profile:
+        return formats[0]
+    scored = [(score_format(f, profile), f) for f in formats]
+    scored.sort(key=lambda t: t[0], reverse=True)
+    return scored[0][1]
+
+
+def describe_pick(fmt, profile):
+    """Return a short human-readable summary of the smart pick."""
+    if not fmt:
+        return "No format available."
+    height = fmt.get("height") or 0
+    fps = fmt.get("fps")
+    vcodec = shorten_vcodec(fmt.get("vcodec"))
+    acodec = shorten_acodec(fmt.get("acodec"))
+    size = estimate_size(fmt)
+
+    parts = [f"{height}p"]
+    if fps and fps >= 50:
+        parts.append(f"{int(fps)}fps")
+    parts.append(vcodec)
+    parts.append(acodec)
+
+    line = " • ".join(parts)
+    if size:
+        line += f"\nEstimated size: {size / 1024 / 1024:.0f} MB"
+    return line
+
+
+# ----------------------------------------------------------------------
+# Custom args
+# ----------------------------------------------------------------------
 def parse_custom_args(raw):
     if not raw or not raw.strip():
         return {}, None
@@ -187,7 +289,9 @@ def build_ydl_opts(
 
     if sponsorblock:
         cats = [
-            c.strip() for c in str(sponsorblock_categories).split(",") if c.strip()
+            c.strip()
+            for c in str(sponsorblock_categories).split(",")
+            if c.strip()
         ]
         our_opts["sponsorblock_remove"] = set(cats or ["sponsor"])
 

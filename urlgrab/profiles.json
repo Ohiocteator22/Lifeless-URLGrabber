@@ -1,0 +1,47 @@
+[
+  {
+    "name": "YouTube 1080p",
+    "max_height": 1080,
+    "min_fps": 0,
+    "container": "mp4",
+    "video_codec_pref": "h264",
+    "audio_codec_pref": "any",
+    "audio_only": false,
+    "audio_bitrate": "192",
+    "output_folder": "Videos",
+    "subtitles": false,
+    "thumbnail": false,
+    "sponsorblock": false,
+    "prefer_hdr": false
+  },
+  {
+    "name": "Music",
+    "max_height": 0,
+    "min_fps": 0,
+    "container": "mp3",
+    "video_codec_pref": "any",
+    "audio_codec_pref": "any",
+    "audio_only": true,
+    "audio_bitrate": "320",
+    "output_folder": "Music",
+    "subtitles": false,
+    "thumbnail": false,
+    "sponsorblock": false,
+    "prefer_hdr": false
+  },
+  {
+    "name": "Archive",
+    "max_height": 2160,
+    "min_fps": 0,
+    "container": "mkv",
+    "video_codec_pref": "any",
+    "audio_codec_pref": "any",
+    "audio_only": false,
+    "audio_bitrate": "192",
+    "output_folder": "Downloads",
+    "subtitles": true,
+    "thumbnail": true,
+    "sponsorblock": false,
+    "prefer_hdr": true
+  }
+]

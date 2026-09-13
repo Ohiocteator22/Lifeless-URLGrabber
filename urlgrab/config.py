@@ -30,6 +30,8 @@ if not os.path.isfile(ARIA2C_PATH):
 COOKIES_FILE = user_path("cookies.txt")
 HISTORY_FILE = user_path("history.json")
 CONFIG_FILE  = user_path("config.json")
+PROFILES_FILE = user_path("profiles.json")
+
 
 MAX_HISTORY = 50
 DEFAULT_GEOMETRY = "980x760"
@@ -56,6 +58,10 @@ DEFAULT_SETTINGS = {
     "proxy": "",
     "speed_limit": "",
     "concurrent_downloads": 1,
+    "theme": "Dark",
+    "notifications": True,
+    "first_run_complete": False,
+    "tray_on_close": True,
 }
 
 
@@ -83,8 +89,6 @@ def resolution_label(height):
 
 
 def parse_speed_limit(text):
-    """Parse '5M', '500K', '1.5G', or a raw number of bytes.
-    Returns int bytes/sec, or None if empty/invalid."""
     if not text:
         return None
     text = str(text).strip().upper()

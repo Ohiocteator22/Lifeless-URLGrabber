@@ -14,6 +14,7 @@ from ..config import (
     human_filesize,
     parse_speed_limit,
 )
+from ..theme import THEMES
 
 
 class SettingsTabMixin:
@@ -24,25 +25,39 @@ class SettingsTabMixin:
         outer = tk.Frame(tab, bg=COLORS["surface"])
         outer.pack(fill=BOTH, expand=True, padx=18, pady=18)
 
-        # ---------- Cookie manager ----------
         self._build_cookie_section(outer)
-
-        # ---------- Network settings ----------
         self._build_network_section(outer)
-
-        # ---------- Concurrency ----------
         self._build_concurrency_section(outer)
+        self._build_appearance_section(outer)
+        self._build_system_section(outer)
+        self._build_save_row(outer)
 
-        # ---------- Save row ----------
-        save_row = tk.Frame(outer, bg=COLORS["surface"])
+        self._current_theme = self.settings.get("theme", "Dark")
+        self._refresh_cookie_status()
+
+    # ------------------------------------------------------------------
+    # Save row
+    # ------------------------------------------------------------------
+    def _build_save_row(self, parent):
+        save_row = tk.Frame(parent, bg=COLORS["surface"])
         save_row.pack(fill=X, pady=(18, 0))
 
-        ttk.Button(
+        self.save_settings_btn = tk.Button(
             save_row,
-            text="💾  Save Settings",
-            style="Success.TButton",
+            text="Save Settings",
+            bg=COLORS["success"],
+            fg="#ffffff",
+            activebackground=COLORS["success_hov"],
+            activeforeground="#ffffff",
+            relief="flat",
+            bd=0,
+            padx=24,
+            pady=10,
+            font=("Segoe UI", 10, "bold"),
+            cursor="hand2",
             command=self._save_settings,
-        ).pack(side=LEFT)
+        )
+        self.save_settings_btn.pack(side=LEFT)
 
         self.settings_saved_var = tk.StringVar(value="")
         tk.Label(
@@ -52,8 +67,6 @@ class SettingsTabMixin:
             fg=COLORS["text_dim"],
             font=("Segoe UI", 9),
         ).pack(side=LEFT, padx=14)
-
-        self._refresh_cookie_status()
 
     # ------------------------------------------------------------------
     # Cookie manager
@@ -118,21 +131,21 @@ class SettingsTabMixin:
 
         ttk.Button(
             btn_row,
-            text="📥  Import cookies.txt",
+            text="Import cookies.txt",
             style="Accent.TButton",
             command=self._import_cookies,
         ).pack(side=LEFT, padx=(0, 8))
 
         ttk.Button(
             btn_row,
-            text="🔄  Refresh",
+            text="Refresh",
             style="Ghost.TButton",
             command=self._refresh_cookie_status,
         ).pack(side=LEFT, padx=(0, 8))
 
         self.cookie_open_btn = ttk.Button(
             btn_row,
-            text="📂  Open Folder",
+            text="Open Folder",
             style="Ghost.TButton",
             command=self._open_cookie_folder,
         )
@@ -140,7 +153,7 @@ class SettingsTabMixin:
 
         self.cookie_delete_btn = ttk.Button(
             btn_row,
-            text="🗑  Delete",
+            text="Delete",
             style="Ghost.TButton",
             command=self._delete_cookies,
         )
@@ -238,7 +251,6 @@ class SettingsTabMixin:
             font=("Segoe UI", 8, "bold"),
         ).pack(anchor=W, pady=(0, 10))
 
-        # Proxy
         proxy_row = tk.Frame(inner, bg=COLORS["surface_2"])
         proxy_row.pack(fill=X, pady=(0, 10))
 
@@ -269,7 +281,6 @@ class SettingsTabMixin:
             font=("Segoe UI", 9),
         ).pack(side=LEFT)
 
-        # Speed limiter
         speed_row = tk.Frame(inner, bg=COLORS["surface_2"])
         speed_row.pack(fill=X)
 
@@ -361,13 +372,131 @@ class SettingsTabMixin:
         ).pack(side=LEFT)
 
     # ------------------------------------------------------------------
+    # Appearance
+    # ------------------------------------------------------------------
+    def _build_appearance_section(self, parent):
+        card = tk.Frame(
+            parent,
+            bg=COLORS["surface_2"],
+            highlightbackground=COLORS["border"],
+            highlightthickness=1,
+        )
+        card.pack(fill=X, pady=(14, 0))
+
+        inner = tk.Frame(card, bg=COLORS["surface_2"])
+        inner.pack(fill=X, padx=18, pady=16)
+
+        tk.Label(
+            inner,
+            text="APPEARANCE",
+            bg=COLORS["surface_2"],
+            fg=COLORS["text_dim"],
+            font=("Segoe UI", 8, "bold"),
+        ).pack(anchor=W, pady=(0, 10))
+
+        theme_row = tk.Frame(inner, bg=COLORS["surface_2"])
+        theme_row.pack(fill=X)
+
+        tk.Label(
+            theme_row,
+            text="Theme:",
+            bg=COLORS["surface_2"],
+            fg=COLORS["text"],
+            font=("Segoe UI", 10),
+            width=14,
+            anchor=W,
+        ).pack(side=LEFT)
+
+        self.theme_var = tk.StringVar(
+            value=self.settings.get("theme", "Dark")
+        )
+        ttk.Combobox(
+            theme_row,
+            textvariable=self.theme_var,
+            values=list(THEMES.keys()),
+            state="readonly",
+            width=14,
+            font=("Segoe UI", 10),
+        ).pack(side=LEFT, padx=(0, 14))
+
+        tk.Label(
+            theme_row,
+            text="Applied on Save — UI rebuilds in the new style.",
+            bg=COLORS["surface_2"],
+            fg=COLORS["text_dim"],
+            font=("Segoe UI", 9),
+        ).pack(side=LEFT)
+
+        notif_row = tk.Frame(inner, bg=COLORS["surface_2"])
+        notif_row.pack(fill=X, pady=(12, 0))
+
+        self.notifications_var = tk.BooleanVar(
+            value=self.settings.get("notifications", True)
+        )
+        tk.Checkbutton(
+            notif_row,
+            text="Show notification on download complete",
+            variable=self.notifications_var,
+            bg=COLORS["surface_2"],
+            fg=COLORS["text"],
+            activebackground=COLORS["surface_2"],
+            activeforeground=COLORS["text"],
+            selectcolor=COLORS["surface"],
+            font=("Segoe UI", 10),
+            borderwidth=0,
+            highlightthickness=0,
+        ).pack(side=LEFT)
+
+    # ------------------------------------------------------------------
+    # System
+    # ------------------------------------------------------------------
+    def _build_system_section(self, parent):
+        card = tk.Frame(
+            parent,
+            bg=COLORS["surface_2"],
+            highlightbackground=COLORS["border"],
+            highlightthickness=1,
+        )
+        card.pack(fill=X, pady=(14, 0))
+
+        inner = tk.Frame(card, bg=COLORS["surface_2"])
+        inner.pack(fill=X, padx=18, pady=16)
+
+        tk.Label(
+            inner,
+            text="SYSTEM",
+            bg=COLORS["surface_2"],
+            fg=COLORS["text_dim"],
+            font=("Segoe UI", 8, "bold"),
+        ).pack(anchor=W, pady=(0, 10))
+
+        self.tray_var = tk.BooleanVar(
+            value=self.settings.get("tray_on_close", True)
+        )
+        tk.Checkbutton(
+            inner,
+            text=(
+                "Minimize to system tray on close "
+                "(right-click tray icon to quit)"
+            ),
+            variable=self.tray_var,
+            bg=COLORS["surface_2"],
+            fg=COLORS["text"],
+            activebackground=COLORS["surface_2"],
+            activeforeground=COLORS["text"],
+            selectcolor=COLORS["surface"],
+            font=("Segoe UI", 10),
+            borderwidth=0,
+            highlightthickness=0,
+        ).pack(anchor=W)
+
+    # ------------------------------------------------------------------
     # Save
     # ------------------------------------------------------------------
     def _save_settings(self):
         proxy = self.proxy_var.get().strip()
         speed = self.speed_var.get().strip()
 
-        # Validate proxy format (basic)
         if proxy and not (
             proxy.startswith("http://")
             or proxy.startswith("https://")
@@ -381,7 +510,6 @@ class SettingsTabMixin:
             )
             return
 
-        # Validate speed limit
         if speed and parse_speed_limit(speed) is None:
             messagebox.showerror(
                 "Invalid speed limit",
@@ -394,12 +522,38 @@ class SettingsTabMixin:
         except ValueError:
             concurrency = 1
 
+        new_theme = self.theme_var.get()
+
+        try:
+            self.save_settings_btn.config(text="Saving..")
+        except Exception:
+            pass
+
         self.settings = {
             "proxy": proxy,
             "speed_limit": speed,
             "concurrent_downloads": concurrency,
+            "theme": new_theme,
+            "notifications": self.notifications_var.get(),
+            "tray_on_close": self.tray_var.get(),
+            "first_run_complete": self.settings.get(
+                "first_run_complete", True
+            ),
         }
         self._save_config()
-        self.settings_saved_var.set("✅ Saved")
-        self.after(2500, lambda: self.settings_saved_var.set(""))
+
+        self.settings_saved_var.set("Saved..")
         self._set_status("Settings saved.")
+
+        self.after(1500, self._reset_save_button)
+        self.after(2500, lambda: self.settings_saved_var.set(""))
+
+        if new_theme != self._current_theme:
+            self._current_theme = new_theme
+            self.apply_theme_live(new_theme)
+
+    def _reset_save_button(self):
+        try:
+            self.save_settings_btn.config(text="Save Settings")
+        except Exception:
+            pass

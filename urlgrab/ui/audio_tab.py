@@ -23,7 +23,6 @@ class AudioTabMixin:
         inner = tk.Frame(tab, bg=COLORS["surface"])
         inner.pack(fill=BOTH, expand=True, padx=18, pady=18)
 
-        # ---------- Intro ----------
         tk.Label(
             inner,
             text="EXTRACT AUDIO (MP3)",
@@ -45,7 +44,6 @@ class AudioTabMixin:
             justify=LEFT,
         ).pack(anchor=W, pady=(0, 22))
 
-        # ---------- Options card ----------
         card = tk.Frame(
             inner,
             bg=COLORS["surface_2"],
@@ -87,7 +85,6 @@ class AudioTabMixin:
             font=("Segoe UI", 10),
         ).pack(side=LEFT)
 
-        # ---------- Action row ----------
         action = tk.Frame(inner, bg=COLORS["surface"])
         action.pack(fill=X, pady=(22, 0))
 
@@ -172,6 +169,7 @@ class AudioTabMixin:
             if getattr(self, "_audio_record", None):
                 self._add_to_history(self._audio_record)
                 self._audio_record = None
+            self._notify("MP3 extracted", "Your audio file is ready.")
             messagebox.showinfo("Success", "MP3 extracted!")
         else:
             self.progress["value"] = 0

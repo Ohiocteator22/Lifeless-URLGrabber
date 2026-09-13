@@ -34,7 +34,6 @@ class BatchTabMixin:
         inner = tk.Frame(tab, bg=COLORS["surface"])
         inner.pack(fill=BOTH, expand=True, padx=18, pady=18)
 
-        # ---------- URL input ----------
         tk.Label(
             inner,
             text="URLS OR PLAYLIST",
@@ -92,7 +91,6 @@ class BatchTabMixin:
             command=lambda: self.batch_text.delete("1.0", tk.END),
         ).pack(side=LEFT)
 
-        # ---------- Queue ----------
         tk.Label(
             inner,
             text="QUEUE",
@@ -147,7 +145,6 @@ class BatchTabMixin:
         )
         self.queue_tree.bind("<Button-3>", self._show_queue_menu)
 
-        # ---------- Queue footer ----------
         qfooter = tk.Frame(inner, bg=COLORS["surface"])
         qfooter.pack(fill=X, pady=(12, 0))
 
@@ -295,7 +292,7 @@ class BatchTabMixin:
         self.queue.clear_done()
 
     # ------------------------------------------------------------------
-    # Queue refresh (throttled, marshalled to main thread)
+    # Queue refresh
     # ------------------------------------------------------------------
     def _queue_changed(self):
         if self._queue_update_pending:
@@ -347,6 +344,21 @@ class BatchTabMixin:
         else:
             self.queue_start_btn.config(state="normal")
             self.queue_stop_btn.config(state="disabled")
+
+        # Toast when queue finishes
+        if (
+            total > 0
+            and not running
+            and done + err == total
+            and getattr(self, "_last_queue_size", 0) != total
+        ):
+            self._last_queue_size = total
+            self._notify(
+                "Queue finished",
+                f"{done} complete" + (f", {err} failed" if err else ""),
+            )
+        elif total == 0:
+            self._last_queue_size = 0
 
     # ------------------------------------------------------------------
     # Queue context menu

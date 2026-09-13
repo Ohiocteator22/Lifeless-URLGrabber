@@ -1,9 +1,13 @@
 import os
+import sys
+import threading
 import tkinter as tk
+from tkinter import messagebox
 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
+from . import __version__, GITHUB_OWNER, GITHUB_REPO
 from .config import (
     BASE_DIR,
     COOKIES_FILE,
@@ -11,11 +15,19 @@ from .config import (
     DEFAULT_GEOMETRY,
     DEFAULT_SETTINGS,
     MIN_SIZE,
+    looks_like_url,
     parse_speed_limit,
     resolution_label,
 )
 from . import storage
+from . import logger
+from . import profiles as profiles_mod
 from .queue import QueueManager
+from .theme import apply_theme
+from .updater import check_for_update
+from .wizard import FirstRunWizard
+from .notifier import notify
+from . import tray
 from .ui.styles import build_styles
 from .ui.header import HeaderMixin
 from .ui.formats_tab import FormatsTabMixin
@@ -23,7 +35,30 @@ from .ui.history_tab import HistoryTabMixin
 from .ui.batch_tab import BatchTabMixin
 from .ui.audio_tab import AudioTabMixin
 from .ui.settings_tab import SettingsTabMixin
+from .ui.log_tab import LogTabMixin
 from .ui.footer import FooterMixin
+
+
+try:
+    from tkinterdnd2 import TkinterDnD, DND_FILES, DND_TEXT
+    HAS_DND = True
+except ImportError:
+    HAS_DND = False
+    DND_FILES = DND_TEXT = None
+
+    class _DnDStub:
+        def drop_target_register(self, *a, **k):
+            pass
+
+        def dnd_bind(self, *a, **k):
+            pass
+
+    class TkinterDnD:
+        DnDWrapper = _DnDStub
+
+        @staticmethod
+        def _require(root):
+            return None
 
 
 class URLGrabApp(
@@ -33,13 +68,27 @@ class URLGrabApp(
     BatchTabMixin,
     AudioTabMixin,
     SettingsTabMixin,
+    LogTabMixin,
     FooterMixin,
+    TkinterDnD.DnDWrapper,
     ttk.Window,
 ):
     def __init__(self):
-        super().__init__(themename="darkly")
-
         self.config = storage.load_config()
+        self.settings = dict(DEFAULT_SETTINGS)
+        for key, default in DEFAULT_SETTINGS.items():
+            self.settings[key] = self.config.get(key, default)
+
+        theme_name = self.settings.get("theme", "Dark")
+        ttk_name = apply_theme(theme_name)
+
+        super().__init__(themename=ttk_name)
+
+        if HAS_DND:
+            try:
+                self.TkdndVersion = TkinterDnD._require(self)
+            except Exception:
+                logger.append("DnD init failed", "WARNING")
 
         self.title("URLGrab")
         self.minsize(*MIN_SIZE)
@@ -48,14 +97,12 @@ class URLGrabApp(
         self.video_info = None
         self.format_map = {}
         self.history = storage.load_history()
+        self.profiles = profiles_mod.load_profiles()
         self._current_record = None
         self._last_clipboard_check = ""
         self._queue_update_pending = False
-
-        # Settings (with defaults filled in)
-        self.settings = dict(DEFAULT_SETTINGS)
-        for key, default in DEFAULT_SETTINGS.items():
-            self.settings[key] = self.config.get(key, default)
+        self._tray_started = False
+        self._quitting = False
 
         self.url_var = tk.StringVar()
         self.output_path = tk.StringVar(value=BASE_DIR)
@@ -75,7 +122,178 @@ class URLGrabApp(
         self._refresh_history_tree()
         self._notify_cookies_status()
 
+        self._setup_dnd()
+        self._setup_tray()
+
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        self.after(300, self._post_launch_checks)
+
+        logger.append(f"URLGrab v{__version__} started")
+
+    # ------------------------------------------------------------------
+    # Post-launch: wizard + updater
+    # ------------------------------------------------------------------
+    def _post_launch_checks(self):
+        if not self.settings.get("first_run_complete"):
+            FirstRunWizard(self, on_finish=self._mark_first_run_done)
+            return
+        self._check_updates_async()
+
+    def _mark_first_run_done(self):
+        self.settings["first_run_complete"] = True
+        self._save_config()
+
+    def _check_updates_async(self):
+        threading.Thread(
+            target=self._check_updates_thread, daemon=True
+        ).start()
+
+    def _check_updates_thread(self):
+        result = check_for_update(
+            current_version=__version__,
+            owner=GITHUB_OWNER,
+            repo=GITHUB_REPO,
+        )
+        if result and result.get("has_update"):
+            self.after(0, lambda: self._prompt_update(result))
+
+    def _prompt_update(self, info):
+        tag = info["latest_tag"]
+        yes = messagebox.askyesno(
+            "Update available",
+            f"URLGrab {tag} is available.\n"
+            f"You're running v{__version__}.\n\n"
+            "Open the release page to download it?",
+        )
+        if yes and info.get("url"):
+            import webbrowser
+            webbrowser.open(info["url"])
+
+    # ------------------------------------------------------------------
+    # Drag and drop
+    # ------------------------------------------------------------------
+    def _setup_dnd(self):
+        if not HAS_DND:
+            return
+        try:
+            self.drop_target_register(DND_TEXT, DND_FILES)
+            self.dnd_bind("<<Drop>>", self._on_drop)
+        except Exception as e:
+            logger.append(f"DnD setup failed: {e}", "WARNING")
+
+    def _on_drop(self, event):
+        raw = getattr(event, "data", "") or ""
+        url = self._extract_url_from_drop(raw)
+        if not url:
+            self._set_status("Dropped item isn't a URL.")
+            return
+        self.deiconify()
+        self.lift()
+        self.url_var.set(url)
+        self._set_status("URL dropped — fetching…")
+        logger.append(f"Dropped URL: {url}")
+        self.fetch_formats()
+
+    @staticmethod
+    def _extract_url_from_drop(raw):
+        if not raw:
+            return None
+        text = raw.strip()
+        if text.startswith("{") and text.endswith("}"):
+            text = text[1:-1]
+        if " " in text and not text.startswith("http"):
+            for token in text.split():
+                t = token.strip("{}")
+                if looks_like_url(t):
+                    return t
+        if looks_like_url(text):
+            return text
+        return None
+
+    # ------------------------------------------------------------------
+    # System tray
+    # ------------------------------------------------------------------
+    def _setup_tray(self):
+        if not tray.is_available():
+            logger.append(
+                "System tray unavailable (pystray missing)", "WARNING"
+            )
+            return
+        ok = tray.start(
+            app=self,
+            on_show=self._restore_from_tray,
+            on_new_download=self._tray_new_download,
+            on_quit=self._tray_quit,
+        )
+        self._tray_started = bool(ok)
+        if ok:
+            logger.append("System tray started")
+
+    def _minimize_to_tray(self):
+        if not self._tray_started:
+            return False
+        try:
+            self.withdraw()
+            logger.append("Minimized to tray")
+            self._notify("URLGrab", "Still running in the system tray.")
+            return True
+        except Exception:
+            return False
+
+    def _restore_from_tray(self):
+        try:
+            self.deiconify()
+            self.lift()
+            self.focus_force()
+        except Exception:
+            pass
+
+    def _tray_new_download(self):
+        self._restore_from_tray()
+        try:
+            self.url_var.set("")
+            self.url_entry.focus_set()
+        except Exception:
+            pass
+        self._set_status("Ready — paste or drop a URL.")
+
+    def _tray_quit(self):
+        self._quitting = True
+        self._on_close()
+
+    # ------------------------------------------------------------------
+    # Theme switching
+    # ------------------------------------------------------------------
+    def apply_theme_live(self, theme_name):
+        ttk_name = apply_theme(theme_name)
+        try:
+            self.style.theme_use(ttk_name)
+        except Exception:
+            pass
+
+        build_styles()
+
+        for child in list(self.winfo_children()):
+            try:
+                child.destroy()
+            except Exception:
+                pass
+
+        self.configure(bg=COLORS["bg"])
+        self._build_ui()
+        self._refresh_history_tree()
+
+        self.settings["theme"] = theme_name
+        self._save_config()
+
+    # ------------------------------------------------------------------
+    # Notification helper
+    # ------------------------------------------------------------------
+    def _notify(self, title, message):
+        if not self.settings.get("notifications", True):
+            return
+        notify(self, title, message)
 
     # ------------------------------------------------------------------
     # UI assembly
@@ -93,6 +311,7 @@ class URLGrabApp(
         self._build_history_tab()
         self._build_batch_tab()
         self._build_audio_tab()
+        self._build_log_tab()
         self._build_settings_tab()
 
         self._build_footer(root)
@@ -135,16 +354,31 @@ class URLGrabApp(
         except Exception:
             pass
         cfg["output_folder"] = self.output_path.get()
-        # Persist settings
         for key, value in self.settings.items():
             cfg[key] = value
         storage.save_config(cfg)
 
     def _on_close(self):
+        if (
+            self._tray_started
+            and not self._quitting
+            and self.settings.get("tray_on_close", True)
+        ):
+            if self._minimize_to_tray():
+                return
+
         try:
             self.queue.stop()
         except Exception:
             pass
+
+        try:
+            logger.unsubscribe(self._log_append)
+        except Exception:
+            pass
+
+        tray.stop()
+
         self._save_config()
         self.destroy()
 
@@ -153,10 +387,20 @@ class URLGrabApp(
     # ------------------------------------------------------------------
     def _set_window_icon(self):
         try:
+            candidates = []
+
+            if hasattr(sys, "_MEIPASS"):
+                candidates.append(os.path.join(sys._MEIPASS, "icon.ico"))
+
+            candidates.append(os.path.join(BASE_DIR, "icon.ico"))
+
             from .config import resource_path
-            icon = resource_path("icon.ico")
-            if os.path.isfile(icon):
-                self.iconbitmap(icon)
+            candidates.append(resource_path("icon.ico"))
+
+            for icon in candidates:
+                if os.path.isfile(icon):
+                    self.iconbitmap(icon)
+                    return
         except Exception:
             pass
 
@@ -165,7 +409,9 @@ class URLGrabApp(
     # ------------------------------------------------------------------
     def _notify_cookies_status(self):
         if os.path.isfile(COOKIES_FILE):
-            self._set_status("cookies.txt detected — Instagram/FB enabled.")
+            self._set_status(
+                "cookies.txt detected — Instagram/FB enabled."
+            )
 
     def _cookie_opts(self):
         if os.path.isfile(COOKIES_FILE):
@@ -173,7 +419,6 @@ class URLGrabApp(
         return {}
 
     def _net_opts(self):
-        """Return proxy + rate limit options for yt-dlp."""
         opts = {}
         proxy = (self.settings.get("proxy") or "").strip()
         if proxy:
@@ -194,5 +439,7 @@ class URLGrabApp(
 
 
 def main():
+    logger.install()
+    logger.install_excepthook()
     app = URLGrabApp()
     app.mainloop()

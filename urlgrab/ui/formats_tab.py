@@ -9,6 +9,8 @@ from ttkbootstrap.constants import *
 
 from ..config import COLORS, resolution_label
 from .. import downloader
+from .. import profiles as profiles_mod
+from .profiles_dialog import ProfilesDialog
 
 
 class FormatsTabMixin:
@@ -22,9 +24,63 @@ class FormatsTabMixin:
         inner = tk.Frame(tab, bg=COLORS["surface"])
         inner.pack(fill=BOTH, expand=True, padx=18, pady=18)
 
+        self._build_profile_bar(inner)
         self._build_formats_tree(inner)
         self._build_options_row(inner)
+        self._build_smart_pick_row(inner)
         self._build_format_context_menu()
+
+    def _build_profile_bar(self, parent):
+        bar = tk.Frame(
+            parent,
+            bg=COLORS["surface_2"],
+            highlightbackground=COLORS["border"],
+            highlightthickness=1,
+        )
+        bar.pack(fill=X, pady=(0, 12))
+
+        inner = tk.Frame(bar, bg=COLORS["surface_2"])
+        inner.pack(fill=X, padx=14, pady=10)
+
+        tk.Label(
+            inner,
+            text="Profile:",
+            bg=COLORS["surface_2"],
+            fg=COLORS["text"],
+            font=("Segoe UI", 10),
+        ).pack(side=LEFT)
+
+        self.profile_var = tk.StringVar(value="Custom")
+        self.profile_combo = ttk.Combobox(
+            inner,
+            textvariable=self.profile_var,
+            values=["Custom"],
+            state="readonly",
+            width=24,
+            font=("Segoe UI", 10),
+        )
+        self.profile_combo.pack(side=LEFT, padx=(8, 8))
+        self.profile_combo.bind(
+            "<<ComboboxSelected>>", self._on_profile_changed
+        )
+
+        ttk.Button(
+            inner,
+            text="Manage Profiles",
+            style="Ghost.TButton",
+            command=self._open_profiles_dialog,
+        ).pack(side=LEFT)
+
+        self.profile_hint_var = tk.StringVar(value="")
+        tk.Label(
+            inner,
+            textvariable=self.profile_hint_var,
+            bg=COLORS["surface_2"],
+            fg=COLORS["text_dim"],
+            font=("Segoe UI", 9),
+        ).pack(side=LEFT, padx=14)
+
+        self._refresh_profile_combo()
 
     def _build_formats_tree(self, parent):
         tree_wrap = tk.Frame(parent, bg=COLORS["surface"])
@@ -78,9 +134,35 @@ class FormatsTabMixin:
         vsb.pack(side=RIGHT, fill=Y)
         self.tree.bind("<Double-1>", lambda e: self.download_selected())
 
-    # ------------------------------------------------------------------
-    # Options
-    # ------------------------------------------------------------------
+    def _build_smart_pick_row(self, parent):
+        row = tk.Frame(
+            parent,
+            bg=COLORS["surface_2"],
+            highlightbackground=COLORS["border"],
+            highlightthickness=1,
+        )
+        row.pack(fill=X, pady=(12, 0))
+
+        inner = tk.Frame(row, bg=COLORS["surface_2"])
+        inner.pack(fill=X, padx=14, pady=12)
+
+        ttk.Button(
+            inner,
+            text="🤖  Smart Pick",
+            style="Accent.TButton",
+            command=self._smart_pick,
+        ).pack(side=LEFT)
+
+        self.smart_info_var = tk.StringVar(value="No format picked yet.")
+        tk.Label(
+            inner,
+            textvariable=self.smart_info_var,
+            bg=COLORS["surface_2"],
+            fg=COLORS["text"],
+            font=("Consolas", 9),
+            justify=LEFT,
+        ).pack(side=LEFT, padx=14, anchor=W)
+
     def _build_options_row(self, parent):
         opts = tk.Frame(
             parent,
@@ -88,12 +170,11 @@ class FormatsTabMixin:
             highlightbackground=COLORS["border"],
             highlightthickness=1,
         )
-        opts.pack(fill=X, pady=(14, 0))
+        opts.pack(fill=X, pady=(12, 0))
 
         inner = tk.Frame(opts, bg=COLORS["surface_2"])
         inner.pack(fill=X, padx=14, pady=12)
 
-        # --- Checkbox row ---
         checks = tk.Frame(inner, bg=COLORS["surface_2"])
         checks.pack(fill=X)
 
@@ -161,10 +242,8 @@ class FormatsTabMixin:
             command=self._refresh_dynamic_row,
         ).pack(side=LEFT)
 
-        # --- Dynamic fields row (hidden until needed) ---
         self.dynamic_row = tk.Frame(inner, bg=COLORS["surface_2"])
 
-        # Subs group
         self.subs_group = tk.Frame(self.dynamic_row, bg=COLORS["surface_2"])
         tk.Label(
             self.subs_group,
@@ -181,8 +260,9 @@ class FormatsTabMixin:
             font=("Segoe UI", 10),
         ).pack(side=LEFT, padx=(6, 0))
 
-        # Sponsor group
-        self.sponsor_group = tk.Frame(self.dynamic_row, bg=COLORS["surface_2"])
+        self.sponsor_group = tk.Frame(
+            self.dynamic_row, bg=COLORS["surface_2"]
+        )
         tk.Label(
             self.sponsor_group,
             text="Categories:",
@@ -198,7 +278,6 @@ class FormatsTabMixin:
             font=("Segoe UI", 10),
         ).pack(side=LEFT, padx=(6, 0))
 
-        # Trim group
         self.trim_group = tk.Frame(self.dynamic_row, bg=COLORS["surface_2"])
         tk.Label(
             self.trim_group,
@@ -236,7 +315,6 @@ class FormatsTabMixin:
             font=("Segoe UI", 9),
         ).pack(side=LEFT)
 
-        # --- Custom args row ---
         args_row = tk.Frame(inner, bg=COLORS["surface_2"])
         args_row.pack(fill=X, pady=(12, 0))
 
@@ -283,6 +361,95 @@ class FormatsTabMixin:
             self.dynamic_row.pack(fill=X, pady=(10, 0))
         else:
             self.dynamic_row.pack_forget()
+
+    # ------------------------------------------------------------------
+    # Profiles
+    # ------------------------------------------------------------------
+    def _refresh_profile_combo(self):
+        names = ["Custom"] + [p.get("name", "Unnamed") for p in self.profiles]
+        self.profile_combo.config(values=names)
+        if self.profile_var.get() not in names:
+            self.profile_var.set("Custom")
+
+    def _active_profile(self):
+        name = self.profile_var.get()
+        if name == "Custom":
+            return None
+        return profiles_mod.get_profile_by_name(self.profiles, name)
+
+    def _on_profile_changed(self, event=None):
+        profile = self._active_profile()
+        if not profile:
+            self.profile_hint_var.set("")
+            return
+
+        self.opt_subs.set(bool(profile.get("subtitles", False)))
+        self.opt_thumb.set(bool(profile.get("thumbnail", False)))
+        self.opt_sponsor.set(bool(profile.get("sponsorblock", False)))
+        self._refresh_dynamic_row()
+
+        bits = []
+        if profile.get("audio_only"):
+            bits.append(f"MP3 {profile.get('audio_bitrate')}kbps")
+        else:
+            h = profile.get("max_height") or 0
+            if h:
+                bits.append(f"{h}p")
+            bits.append(profile.get("container", "mp4"))
+        folder = profile.get("output_folder") or "(main folder)"
+        bits.append(f"→ {folder}")
+        self.profile_hint_var.set("  ·  ".join(bits))
+
+    def _open_profiles_dialog(self):
+        ProfilesDialog(self, self.profiles, self._on_profiles_saved)
+
+    def _on_profiles_saved(self, new_profiles):
+        self.profiles = new_profiles
+        profiles_mod.save_profiles(self.profiles)
+        self._refresh_profile_combo()
+
+    # ------------------------------------------------------------------
+    # Smart pick
+    # ------------------------------------------------------------------
+    def _smart_pick(self):
+        if not self.format_map:
+            messagebox.showinfo(
+                "Smart Pick",
+                "Fetch formats first — paste a URL and click Fetch.",
+            )
+            return
+
+        profile = self._active_profile()
+        if not profile:
+            profile = {
+                "max_height": 1080,
+                "min_fps": 0,
+                "container": "mp4",
+                "video_codec_pref": "any",
+                "audio_codec_pref": "any",
+                "prefer_hdr": False,
+            }
+
+        formats = list(self.format_map.values())
+        pick = downloader.pick_smart_format(formats, profile)
+        if not pick:
+            self.smart_info_var.set("No suitable format found.")
+            return
+
+        fid = pick.get("format_id")
+        target_iid = None
+        for iid, f in self.format_map.items():
+            if f.get("format_id") == fid:
+                target_iid = iid
+                break
+
+        if target_iid is not None:
+            self.tree.selection_set(target_iid)
+            self.tree.focus(target_iid)
+            self.tree.see(target_iid)
+
+        summary = downloader.describe_pick(pick, profile)
+        self.smart_info_var.set(summary.replace("\n", "   "))
 
     # ------------------------------------------------------------------
     # Context menu
@@ -399,7 +566,7 @@ class FormatsTabMixin:
             ext = (f.get("ext") or "???").lower()
             fps = f.get("fps")
             fps_str = f"{fps:.0f}" if fps else "—"
-            size = f.get("filesize") or f.get("filesize_approx")
+            size = downloader.estimate_size(f)
             size_str = f"{size / 1024 / 1024:.1f} MB" if size else "—"
 
             self.tree.insert(
@@ -419,6 +586,10 @@ class FormatsTabMixin:
                 ),
             )
             self.format_map[str(i)] = f
+
+        # Auto-run smart pick when a profile is active
+        if self._active_profile():
+            self.after(50, self._smart_pick)
 
     def _clear_tree(self):
         for row in self.tree.get_children():
@@ -451,11 +622,19 @@ class FormatsTabMixin:
         if not fmt:
             return
 
+        profile = self._active_profile()
         url = self.url_var.get().strip()
-        out_dir = self.output_path.get()
+
+        base_out = self.output_path.get()
+        out_dir = base_out
+        if profile:
+            out_dir = profiles_mod.resolve_output_dir(profile, base_out)
+
         height = fmt["height"]
         ext = (fmt.get("ext") or "mp4").lower()
         merge_ext = "mkv" if ext == "mkv" else "mp4"
+        if profile and profile.get("container"):
+            merge_ext = profile["container"]
 
         format_selector = downloader.build_format_selector(height)
 
@@ -466,7 +645,6 @@ class FormatsTabMixin:
         sponsor_cats = self.sponsor_cats_var.get().strip() or "sponsor"
         custom_args = self.custom_args_var.get().strip()
 
-        # Validate custom args before we waste time
         if custom_args:
             _, err = downloader.parse_custom_args(custom_args)
             if err:
@@ -479,7 +657,9 @@ class FormatsTabMixin:
         trim_start = None
         trim_end = None
         if self.opt_trim.get():
-            trim_start = downloader.parse_timecode(self.trim_start_var.get())
+            trim_start = downloader.parse_timecode(
+                self.trim_start_var.get()
+            )
             trim_end = downloader.parse_timecode(self.trim_end_var.get())
             if (
                 trim_start is None
@@ -489,8 +669,7 @@ class FormatsTabMixin:
             ):
                 messagebox.showwarning(
                     "Trim",
-                    "Trim is enabled but both start and end are empty. "
-                    "Fill at least one, or disable Trim.",
+                    "Trim is enabled but both start and end are empty.",
                 )
                 return
 
@@ -611,6 +790,7 @@ class FormatsTabMixin:
             if self._current_record:
                 self._add_to_history(self._current_record)
                 self._current_record = None
+            self._notify("Download complete", "Your video is ready.")
             messagebox.showinfo("Success", "Download complete!")
         else:
             self.progress["value"] = 0
