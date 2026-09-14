@@ -22,7 +22,7 @@ _Nothing yet — ideas live in the issue tracker._
 
 ---
 
-## [1.1.9ES] - 2024-XX-XX
+## [1.1.9ES] - 2026-September
 
 **Ecosystem Support release.** URLGrab is no longer Windows-only.
 All platform-specific code is now routed through a single
@@ -75,7 +75,7 @@ rather than adding new user-facing features.
   nightmare. Building locally sidesteps the whole problem.
 - Steve Jobs.
 
-## [1.1.8FD] - 2024-XX-XX
+## [1.1.8FD] - 2026-September
 
 ### Added
 
@@ -111,7 +111,7 @@ rather than adding new user-facing features.
 
 - Item output folder and format now respected when downloading
 
-## [1.1.7FD] - 2026-XX-XX
+## [1.1.7FD] - 2026-September
 
 **Feature-Dense release.** Turns URLGrab into a proper desktop app
 with tray integration, drag-and-drop, and a built-in log viewer.
@@ -145,7 +145,7 @@ with tray integration, drag-and-drop, and a built-in log viewer.
 
 ---
 
-## [1.1.6FD] - 2026-XX-XX
+## [1.1.6FD] - 2026-September
 
 **Feature-Dense release.** Ships the entire power-user toolkit in one
 drop — settings, themes, onboarding, updates, and notifications.
@@ -205,7 +205,7 @@ drop — settings, themes, onboarding, updates, and notifications.
 
 ---
 
-## [1.1.4FD] - 2026-XX-XX
+## [1.1.4FD] - 2026-September
 
 **Feature-Dense release.** Four major features shipped together —
 audio extraction, subtitles, thumbnails, and video trimming.
@@ -252,7 +252,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 
 ---
 
-## [1.1.3] - 2026-XX-XX
+## [1.1.3] - 2026-September
 
 ### Added
 
@@ -279,7 +279,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 
 ---
 
-## [1.1.2] - 2026-XX-XX
+## [1.1.2] - 2026-September
 
 ### Added
 
@@ -295,7 +295,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 
 ---
 
-## [1.1.1] - 2026-XX-XX
+## [1.1.1] - 2026-September
 
 ### Added
 
@@ -309,7 +309,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 
 ---
 
-## [1.1.0] - 2026-XX-XX
+## [1.1.0] - 2026-September
 
 ### Added
 
@@ -330,7 +330,7 @@ audio extraction, subtitles, thumbnails, and video trimming.
 
 ---
 
-## [1.0.0] - 2026-XX-XX
+## [1.0.0] - 2026-September
 
 ### Added
 
