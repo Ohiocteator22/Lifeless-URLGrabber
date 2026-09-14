@@ -15,6 +15,59 @@ _Nothing yet — ideas live in the issue tracker._
 
 ---
 
+## [1.1.9ES] - 2024-XX-XX
+
+**Ecosystem Support release.** URLGrab is no longer Windows-only.
+All platform-specific code is now routed through a single
+`platform_utils` module, and a one-command macOS build script ships
+with the repo.
+
+The `ES` tag marks releases that expand platform or ecosystem support
+rather than adding new user-facing features.
+
+### Added
+
+- **macOS support** — URLGrab now runs natively on macOS
+  - `build-macos.sh` — one-command build script at the repo root
+  - Produces a working `dist/URLGrab.app` bundle
+  - Auto-downloads FFmpeg + FFprobe, optionally grabs aria2c via Homebrew
+  - Auto-converts `icon.ico` → `icon.icns` for the Dock icon
+- New module: `urlgrab/platform_utils.py` — single source of truth for
+  - Windows / macOS / Linux detection
+  - Cross-platform binary discovery (ffmpeg, ffprobe, aria2c)
+  - Cross-platform file manager opener (Explorer / Finder / Nautilus)
+  - Cross-platform Wi-Fi detection (`netsh` / `networksetup` / `nmcli`)
+  - Platform-appropriate icon path resolution (.ico / .icns / .png)
+
+### Changed
+
+- `config.py` — replaced hardcoded `.exe` paths with platform-aware
+  binary discovery. Searches `_MEIPASS`, next-to-exe, project root,
+  then system PATH.
+- `bandwidth.py` — wifi detection now delegates to `platform_utils`
+- `app.py` — window icon uses `iconphoto` on macOS (Tk doesn't support
+  `iconbitmap` with `.ico` there), `iconbitmap` on Windows
+- `history_tab.py`, `batch_tab.py`, `settings_tab.py` — all "open folder"
+  calls now route through `platform_utils.open_in_file_manager()`
+
+### Fixed
+
+- macOS: no more crashes from `os.startfile` (which doesn't exist there)
+- macOS: `.app` bundle now shows the URLGrab icon in the Dock
+- Linux: `xdg-open` fallback added for the "open folder" action
+
+### Notes
+
+- Windows binaries are functionally unchanged — all new code paths fall
+  through to the same behavior
+- macOS users must build locally: `bash build-macos.sh`
+- First launch on macOS: right-click the `.app` → Open, or run
+  `xattr -cr dist/URLGrab.app` to bypass Gatekeeper
+- Reason macOS isn't pre-built: Apple charges $99/year for code signing,
+  and shipping unsigned binaries in a GitHub release is a support
+  nightmare. Building locally sidesteps the whole problem.
+- Steve Jobs.
+
 ## [1.1.8FD] - 2024-XX-XX
 
 ### Added
