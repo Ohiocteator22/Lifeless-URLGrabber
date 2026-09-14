@@ -15,6 +15,7 @@ from ..config import (
     parse_speed_limit,
 )
 from ..theme import THEMES
+from .. import platform_utils
 
 
 class SettingsTabMixin:
@@ -22,7 +23,6 @@ class SettingsTabMixin:
         tab = tk.Frame(self.notebook, bg=COLORS["surface"])
         self.notebook.add(tab, text="  SETTINGS  ")
 
-        # Scrollable container
         outer = tk.Frame(tab, bg=COLORS["surface"])
         outer.pack(fill=BOTH, expand=True)
 
@@ -68,9 +68,6 @@ class SettingsTabMixin:
         self._current_theme = self.settings.get("theme", "Dark")
         self._refresh_cookie_status()
 
-    # ------------------------------------------------------------------
-    # Save row
-    # ------------------------------------------------------------------
     def _build_save_row(self, parent):
         save_row = tk.Frame(parent, bg=COLORS["surface"])
         save_row.pack(fill=X, pady=(18, 0))
@@ -101,9 +98,6 @@ class SettingsTabMixin:
             font=("Segoe UI", 9),
         ).pack(side=LEFT, padx=14)
 
-    # ------------------------------------------------------------------
-    # Cookie manager
-    # ------------------------------------------------------------------
     def _build_cookie_section(self, parent):
         card = tk.Frame(
             parent,
@@ -242,17 +236,9 @@ class SettingsTabMixin:
 
     def _open_cookie_folder(self):
         folder = os.path.dirname(COOKIES_FILE)
-        try:
-            os.startfile(folder)
-        except AttributeError:
-            import webbrowser
-            webbrowser.open(f"file://{folder}")
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not open folder:\n{e}")
+        if not platform_utils.open_in_file_manager(folder):
+            messagebox.showerror("Error", "Could not open folder.")
 
-    # ------------------------------------------------------------------
-    # Network settings
-    # ------------------------------------------------------------------
     def _build_network_section(self, parent):
         card = tk.Frame(
             parent,
@@ -293,9 +279,6 @@ class SettingsTabMixin:
             font=("Segoe UI", 9),
         ).pack(side=LEFT)
 
-    # ------------------------------------------------------------------
-    # Bandwidth / network manager
-    # ------------------------------------------------------------------
     def _build_bandwidth_section(self, parent):
         card = tk.Frame(
             parent,
@@ -380,7 +363,6 @@ class SettingsTabMixin:
             borderwidth=0, highlightthickness=0,
         ).pack(anchor=W, pady=(0, 8))
 
-        # Night mode
         self.bw_night_var = tk.BooleanVar(
             value=self.settings.get("bandwidth_night_mode", False)
         )
@@ -420,9 +402,6 @@ class SettingsTabMixin:
             width=7, font=("Consolas", 10),
         ).pack(side=LEFT, padx=(4, 0))
 
-    # ------------------------------------------------------------------
-    # Concurrency
-    # ------------------------------------------------------------------
     def _build_concurrency_section(self, parent):
         card = tk.Frame(
             parent,
@@ -490,9 +469,6 @@ class SettingsTabMixin:
             font=("Segoe UI", 9),
         ).pack(side=LEFT)
 
-    # ------------------------------------------------------------------
-    # Appearance
-    # ------------------------------------------------------------------
     def _build_appearance_section(self, parent):
         card = tk.Frame(
             parent,
@@ -554,9 +530,6 @@ class SettingsTabMixin:
             borderwidth=0, highlightthickness=0,
         ).pack(side=LEFT)
 
-    # ------------------------------------------------------------------
-    # System
-    # ------------------------------------------------------------------
     def _build_system_section(self, parent):
         card = tk.Frame(
             parent,
@@ -593,9 +566,6 @@ class SettingsTabMixin:
             borderwidth=0, highlightthickness=0,
         ).pack(anchor=W)
 
-    # ------------------------------------------------------------------
-    # Save
-    # ------------------------------------------------------------------
     def _save_settings(self):
         proxy = self.proxy_var.get().strip()
         speed = self.speed_var.get().strip()

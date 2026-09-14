@@ -1,5 +1,4 @@
 import os
-import webbrowser
 import tkinter as tk
 from tkinter import messagebox
 
@@ -8,6 +7,7 @@ from ttkbootstrap.constants import *
 
 from ..config import COLORS
 from .. import storage
+from .. import platform_utils
 
 
 class HistoryTabMixin:
@@ -101,9 +101,6 @@ class HistoryTabMixin:
         )
         self.history_tree.bind("<Button-3>", self._show_history_menu)
 
-    # ------------------------------------------------------------------
-    # Data flow
-    # ------------------------------------------------------------------
     def _add_to_history(self, record):
         self.history.insert(0, record)
         self.history = self.history[:50]
@@ -149,9 +146,6 @@ class HistoryTabMixin:
         storage.save_history(self.history)
         self._refresh_history_tree()
 
-    # ------------------------------------------------------------------
-    # Context menu
-    # ------------------------------------------------------------------
     def _show_history_menu(self, event):
         row = self.history_tree.identify_row(event.y)
         if not row:
@@ -183,12 +177,8 @@ class HistoryTabMixin:
         if not folder or not os.path.isdir(folder):
             messagebox.showerror("Error", "Folder no longer exists.")
             return
-        try:
-            os.startfile(folder)
-        except AttributeError:
-            webbrowser.open(f"file://{folder}")
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not open folder:\n{e}")
+        if not platform_utils.open_in_file_manager(folder):
+            messagebox.showerror("Error", "Could not open folder.")
 
     def _copy_history_url(self):
         picked = self._selected_history_record()

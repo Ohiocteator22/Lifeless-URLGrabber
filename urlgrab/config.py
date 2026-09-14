@@ -1,31 +1,58 @@
 import os
 import sys
 
+from .platform_utils import (
+    binary_ext,
+    find_binary,
+    is_macos,
+    is_windows,
+)
+
+
+def _frozen_base_dir():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 def resource_path(relative):
     if hasattr(sys, "_MEIPASS"):
         return os.path.join(sys._MEIPASS, relative)
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative)
+    return os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), relative
+    )
 
 
 def user_path(relative):
     if getattr(sys, "frozen", False):
-        return os.path.join(os.path.dirname(sys.executable), relative)
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative)
+        return os.path.join(
+            os.path.dirname(sys.executable), relative
+        )
+    return os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), relative
+    )
 
 
-BASE_DIR = (
-    os.path.dirname(sys.executable)
-    if getattr(sys, "frozen", False)
-    else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
+BASE_DIR = _frozen_base_dir()
 
-FFMPEG_DIR = resource_path("") if getattr(sys, "frozen", False) else BASE_DIR
 
-ARIA2C_PATH = resource_path("aria2c.exe")
-if not os.path.isfile(ARIA2C_PATH):
-    alt = os.path.join(BASE_DIR, "aria2c.exe")
-    ARIA2C_PATH = alt if os.path.isfile(alt) else None
+_BIN_SEARCH_DIRS = [
+    resource_path("") if hasattr(sys, "_MEIPASS") else None,
+    os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else None,
+    BASE_DIR,
+]
+
+
+FFMPEG_PATH  = find_binary("ffmpeg",  _BIN_SEARCH_DIRS)
+FFPROBE_PATH = find_binary("ffprobe", _BIN_SEARCH_DIRS)
+ARIA2C_PATH  = find_binary("aria2c",  _BIN_SEARCH_DIRS)
+
+
+if FFMPEG_PATH and FFPROBE_PATH:
+    FFMPEG_DIR = os.path.dirname(FFMPEG_PATH)
+else:
+    FFMPEG_DIR = BASE_DIR
+
 
 COOKIES_FILE  = user_path("cookies.txt")
 HISTORY_FILE  = user_path("history.json")
@@ -61,14 +88,12 @@ DEFAULT_SETTINGS = {
     "notifications": True,
     "first_run_complete": False,
     "tray_on_close": True,
-    # --- Bandwidth / network manager ---
     "bandwidth_apply_to_queue": True,
     "bandwidth_night_mode": False,
     "bandwidth_night_start": "02:00",
     "bandwidth_night_end": "08:00",
     "bandwidth_pause_on_drop": False,
     "bandwidth_wifi_only": False,
-    # --- Queue ---
     "queue_auto_retry": 2,
 }
 
@@ -122,3 +147,7 @@ def human_filesize(num_bytes):
             return f"{num_bytes:.1f} {unit}"
         num_bytes /= 1024
     return f"{num_bytes:.1f} TB"
+
+
+IS_MAC = is_macos()
+IS_WIN = is_windows()

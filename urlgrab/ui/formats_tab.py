@@ -134,35 +134,6 @@ class FormatsTabMixin:
         vsb.pack(side=RIGHT, fill=Y)
         self.tree.bind("<Double-1>", lambda e: self.download_selected())
 
-    def _build_smart_pick_row(self, parent):
-        row = tk.Frame(
-            parent,
-            bg=COLORS["surface_2"],
-            highlightbackground=COLORS["border"],
-            highlightthickness=1,
-        )
-        row.pack(fill=X, pady=(12, 0))
-
-        inner = tk.Frame(row, bg=COLORS["surface_2"])
-        inner.pack(fill=X, padx=14, pady=12)
-
-        ttk.Button(
-            inner,
-            text="🤖  Smart Pick",
-            style="Accent.TButton",
-            command=self._smart_pick,
-        ).pack(side=LEFT)
-
-        self.smart_info_var = tk.StringVar(value="No format picked yet.")
-        tk.Label(
-            inner,
-            textvariable=self.smart_info_var,
-            bg=COLORS["surface_2"],
-            fg=COLORS["text"],
-            font=("Consolas", 9),
-            justify=LEFT,
-        ).pack(side=LEFT, padx=14, anchor=W)
-
     def _build_options_row(self, parent):
         opts = tk.Frame(
             parent,
@@ -341,6 +312,53 @@ class FormatsTabMixin:
             font=("Segoe UI", 9),
         ).pack(side=LEFT)
 
+    def _build_smart_pick_row(self, parent):
+        row = tk.Frame(
+            parent,
+            bg=COLORS["surface_2"],
+            highlightbackground=COLORS["border"],
+            highlightthickness=1,
+        )
+        row.pack(fill=X, pady=(12, 0))
+
+        inner = tk.Frame(row, bg=COLORS["surface_2"])
+        inner.pack(fill=X, padx=14, pady=12)
+
+        ttk.Button(
+            inner,
+            text="🤖  Smart Pick",
+            style="Accent.TButton",
+            command=self._smart_pick,
+        ).pack(side=LEFT)
+
+        self.inline_download_btn = ttk.Button(
+            inner,
+            text="⬇  Download",
+            style="Success.TButton",
+            command=self.download_selected,
+        )
+        self.inline_download_btn.pack(side=LEFT, padx=(10, 0))
+
+        self.smart_info_var = tk.StringVar(value="No format picked yet.")
+        tk.Label(
+            inner,
+            textvariable=self.smart_info_var,
+            bg=COLORS["surface_2"],
+            fg=COLORS["text"],
+            font=("Consolas", 9),
+            justify=LEFT,
+        ).pack(side=LEFT, padx=14, anchor=W)
+
+    def _set_download_buttons(self, state, text):
+        for attr in ("download_btn", "inline_download_btn"):
+            btn = getattr(self, attr, None)
+            if btn is None:
+                continue
+            try:
+                btn.config(state=state, text=text)
+            except Exception:
+                pass
+
     def _refresh_dynamic_row(self):
         self.subs_group.pack_forget()
         self.sponsor_group.pack_forget()
@@ -366,7 +384,9 @@ class FormatsTabMixin:
     # Profiles
     # ------------------------------------------------------------------
     def _refresh_profile_combo(self):
-        names = ["Custom"] + [p.get("name", "Unnamed") for p in self.profiles]
+        names = ["Custom"] + [
+            p.get("name", "Unnamed") for p in self.profiles
+        ]
         self.profile_combo.config(values=names)
         if self.profile_var.get() not in names:
             self.profile_var.set("Custom")
@@ -587,7 +607,6 @@ class FormatsTabMixin:
             )
             self.format_map[str(i)] = f
 
-        # Auto-run smart pick when a profile is active
         if self._active_profile():
             self.after(50, self._smart_pick)
 
@@ -688,7 +707,7 @@ class FormatsTabMixin:
             "output_dir": out_dir,
         }
 
-        self.download_btn.config(state="disabled", text="⏳  Starting…")
+        self._set_download_buttons("disabled", "⏳  Starting…")
         self.progress.configure(mode="indeterminate")
         self.progress.start(12)
         self._set_status(f"Preparing {height}p {merge_ext.upper()}…")
@@ -768,7 +787,7 @@ class FormatsTabMixin:
         if str(self.progress["mode"]) == "indeterminate":
             self.progress.stop()
             self.progress.configure(mode="determinate")
-            self.download_btn.config(text="⬇  Downloading…")
+            self._set_download_buttons("disabled", "⬇  Downloading…")
         self.progress["value"] = pct
         self._set_status(f"Downloading… {speed}")
 
@@ -782,7 +801,7 @@ class FormatsTabMixin:
         except Exception:
             pass
         self.progress.configure(mode="determinate")
-        self.download_btn.config(state="normal", text="⬇  Download")
+        self._set_download_buttons("normal", "⬇  Download")
 
         if success:
             self.progress["value"] = 100

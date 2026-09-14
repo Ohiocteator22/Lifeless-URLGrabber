@@ -37,17 +37,17 @@ URLGrab is a lightweight desktop app that downloads videos from **1800+ websites
 
 URLGrab is powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp), which supports **1800+ sites** out of the box, including:
 
-| Site | Support |
-|------|---------|
-| YouTube | ✅ |
-| TikTok | ✅ |
-| Twitter / X | ✅ |
-| Reddit | ✅ |
-| Vimeo | ✅ |
-| Twitch (VODs) | ✅ |
-| Dailymotion | ✅ |
-| Instagram | ⚠️ requires `cookies.txt` |
-| Facebook | ⚠️ requires `cookies.txt` |
+| Site          | Support                   |
+| ------------- | ------------------------- |
+| YouTube       | ✅                        |
+| TikTok        | ✅                        |
+| Twitter / X   | ✅                        |
+| Reddit        | ✅                        |
+| Vimeo         | ✅                        |
+| Twitch (VODs) | ✅                        |
+| Dailymotion   | ✅                        |
+| Instagram     | ⚠️ requires `cookies.txt` |
+| Facebook      | ⚠️ requires `cookies.txt` |
 
 ## 📥 Installation
 
@@ -57,7 +57,7 @@ Grab the latest `URLGrab.exe` from the [Releases](../../releases) page. Double-c
 
 ### Option 2 — Run from source
 
-```bash
+````bash
 # Clone the repo
 git clone https://github.com/YOUR_USERNAME/URLGrab.git
 cd URLGrab
@@ -75,3 +75,74 @@ pip install yt-dlp ttkbootstrap
 
 # Run it
 python URLGrab.py
+
+
+# 🍎 macOS Support
+
+URLGrab **supports macOS**, but there isn't currently a pre-built `.app`
+bundled with the release.
+
+But guess what?
+
+**YOU can build it yourself.**
+
+### 🛠️ How to build
+
+1. Download the URLGrab repository as a `.zip`.
+2. Extract the ZIP somewhere.
+3. Open **Terminal** inside the extracted repository.
+4. Run:
+
+   ```bash
+   bash build-macos.sh
+````
+
+Wait for the build to finish. (First run takes 2–5 minutes.)
+
+You'll get a working macOS build at dist/URLGrab.app.
+
+Once you've built it, you can delete the repository folder and the
+original ZIP if you don't need them anymore.
+
+🍺 Prerequisites
+Python 3.10+ — pre-installed on most Macs, or via python.org
+
+Homebrew (optional) — only needed for the aria2c download accelerator
+
+Xcode Command Line Tools — if iconutil is missing, run xcode-select --install
+
+🚪 First launch warning
+macOS will warn that URLGrab is from an "unidentified developer." This is
+normal — the app isn't code-signed.
+
+To open it anyway:
+
+Right-click the app → Open → Open
+
+Or run once: xattr -cr dist/URLGrab.app
+
+⚠️ Known limitation
+If you want the latest version of URLGrab, you'll need to repeat this
+process whenever a new version is released.
+
+Why is this happening?
+Steve Jobs.
+
+(More specifically: Apple charges $99/year for code signing certificates,
+and shipping an unsigned binary in a GitHub release is a support nightmare
+because every user hits the Gatekeeper warning. Building locally sidesteps
+the whole problem.)
+
+text
+
+---
+
+### 🎯 Why this is the right approach
+
+- **One command** — `bash build-macos.sh` does everything
+- **Self-healing** — each step checks if the file already exists
+- **No hidden assumptions** — works on Intel and Apple Silicon
+- **No expensive deps** — Homebrew is optional, everything else is free
+- **Steve Jobs joke stays** — that line is gold
+
+Commit both, tag `v1.1.9`, push. The GitHub Actions build will _also_ work if you ever set that up — but for now, this README solution is honest and simple.

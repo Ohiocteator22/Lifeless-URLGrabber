@@ -28,6 +28,7 @@ from .updater import check_for_update
 from .wizard import FirstRunWizard
 from .notifier import notify
 from . import tray
+from . import platform_utils
 from .ui.styles import build_styles
 from .ui.header import HeaderMixin
 from .ui.formats_tab import FormatsTabMixin
@@ -135,7 +136,7 @@ class URLGrabApp(
         logger.append(f"URLGrab v{__version__} started")
 
     # ------------------------------------------------------------------
-    # Post-launch: wizard + updater
+    # Post-launch
     # ------------------------------------------------------------------
     def _post_launch_checks(self):
         if not self.settings.get("first_run_complete"):
@@ -194,7 +195,7 @@ class URLGrabApp(
         self.deiconify()
         self.lift()
         self.url_var.set(url)
-        self._set_status("URL dropped — fetching…")
+        self._set_status("URL dropped - fetching...")
         logger.append(f"Dropped URL: {url}")
         self.fetch_formats()
 
@@ -259,7 +260,7 @@ class URLGrabApp(
             self.url_entry.focus_set()
         except Exception:
             pass
-        self._set_status("Ready — paste or drop a URL.")
+        self._set_status("Ready - paste or drop a URL.")
 
     def _tray_quit(self):
         self._quitting = True
@@ -325,11 +326,11 @@ class URLGrabApp(
     def _queue_item_done(self, item):
         height = item.get("height")
         record = {
-            "timestamp": item.get("timestamp", "—"),
+            "timestamp": item.get("timestamp", "-"),
             "title": item.get("title", "Unknown"),
             "url": item.get("url", ""),
-            "quality": resolution_label(height) if height else "—",
-            "resolution": f"{height}p" if height else "—",
+            "quality": resolution_label(height) if height else "-",
+            "resolution": f"{height}p" if height else "-",
             "container": item.get("container", "mp4"),
             "format_id": None,
             "output_dir": item.get("out_dir", ""),
@@ -390,20 +391,24 @@ class URLGrabApp(
     # ------------------------------------------------------------------
     def _set_window_icon(self):
         try:
-            candidates = []
+            paths = platform_utils.get_app_icon_paths("icon")
 
-            if hasattr(sys, "_MEIPASS"):
-                candidates.append(os.path.join(sys._MEIPASS, "icon.ico"))
+            for ext in (".ico", ".icns", ".png"):
+                paths.append(os.path.join(BASE_DIR, "icon" + ext))
 
-            candidates.append(os.path.join(BASE_DIR, "icon.ico"))
-
-            from .config import resource_path
-            candidates.append(resource_path("icon.ico"))
-
-            for icon in candidates:
-                if os.path.isfile(icon):
-                    self.iconbitmap(icon)
+            for icon in paths:
+                if not os.path.isfile(icon):
+                    continue
+                try:
+                    if icon.lower().endswith(".png"):
+                        img = tk.PhotoImage(file=icon)
+                        self.iconphoto(True, img)
+                        self._icon_photo = img
+                    else:
+                        self.iconbitmap(icon)
                     return
+                except Exception:
+                    continue
         except Exception:
             pass
 
@@ -413,7 +418,7 @@ class URLGrabApp(
     def _notify_cookies_status(self):
         if os.path.isfile(COOKIES_FILE):
             self._set_status(
-                "cookies.txt detected — Instagram/FB enabled."
+                "cookies.txt detected - Instagram/FB enabled."
             )
 
     def _cookie_opts(self):

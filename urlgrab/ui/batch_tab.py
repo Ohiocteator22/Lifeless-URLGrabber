@@ -16,6 +16,7 @@ from ..queue import (
     STATUS_CANCELLED,
 )
 from .. import bandwidth
+from .. import platform_utils
 from .item_edit_dialog import ItemEditDialog
 
 
@@ -170,7 +171,6 @@ class BatchTabMixin:
         )
         self.queue_tree.bind("<Button-3>", self._show_queue_menu)
 
-        # ---------------- Footer ----------------
         qfooter = tk.Frame(inner, bg=COLORS["surface"])
         qfooter.pack(fill=X, pady=(12, 0))
 
@@ -221,9 +221,6 @@ class BatchTabMixin:
             font=("Segoe UI", 9),
         ).pack(side=RIGHT, padx=14)
 
-    # ------------------------------------------------------------------
-    # Add URLs
-    # ------------------------------------------------------------------
     def _batch_collect_urls(self):
         raw = self.batch_text.get("1.0", tk.END)
         lines = [ln.strip() for ln in raw.splitlines()]
@@ -242,9 +239,6 @@ class BatchTabMixin:
         self.batch_text.delete("1.0", tk.END)
         self._set_status(f"Added {len(urls)} URL(s) to queue.")
 
-    # ------------------------------------------------------------------
-    # Playlist
-    # ------------------------------------------------------------------
     def _batch_load_playlist(self):
         raw = self.batch_text.get("1.0", tk.END)
         lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
@@ -304,9 +298,6 @@ class BatchTabMixin:
         self._set_status(f"Playlist error: {err[:80]}")
         messagebox.showerror("Playlist Error", err)
 
-    # ------------------------------------------------------------------
-    # Queue control
-    # ------------------------------------------------------------------
     def _queue_start(self):
         if not self.queue.items:
             self._set_status("Queue is empty.")
@@ -352,9 +343,6 @@ class BatchTabMixin:
         self.queue.retry_all_failed()
         self._set_status("Retrying failed items.")
 
-    # ------------------------------------------------------------------
-    # Context menu actions
-    # ------------------------------------------------------------------
     def _show_queue_menu(self, event):
         row = self.queue_tree.identify_row(event.y)
         if not row:
@@ -387,10 +375,8 @@ class BatchTabMixin:
         if not folder or not os.path.isdir(folder):
             messagebox.showerror("Error", "Folder no longer exists.")
             return
-        try:
-            os.startfile(folder)
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not open folder:\n{e}")
+        if not platform_utils.open_in_file_manager(folder):
+            messagebox.showerror("Error", "Could not open folder.")
 
     def _queue_remove(self):
         item = self._selected_queue_item()
@@ -437,9 +423,6 @@ class BatchTabMixin:
 
         ItemEditDialog(self, item, _on_save)
 
-    # ------------------------------------------------------------------
-    # Import / export
-    # ------------------------------------------------------------------
     def _queue_export(self):
         path = filedialog.asksaveasfilename(
             defaultextension=".json",
@@ -469,9 +452,6 @@ class BatchTabMixin:
         else:
             messagebox.showerror("Import failed", "Could not read the file.")
 
-    # ------------------------------------------------------------------
-    # Refresh
-    # ------------------------------------------------------------------
     def _queue_changed(self):
         if self._queue_update_pending:
             return
