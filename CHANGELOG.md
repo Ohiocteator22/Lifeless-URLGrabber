@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 Releases tagged `FD` are **Feature-Dense** — they pack multiple
 substantial features together rather than a single-focused bump.
 
+Releases tagged `ES` are **Expansions for app support** — they include 
+support for other operating systems and devices
+
+Releases tagged `BF` are **Bug-Fixes** — they fix bugs
+that mess with the functioning of the app. In other words, they fix major bugs
+minor bug fixes are not tagged as `BF` releases
+
 ---
 
 ## [Unreleased]
